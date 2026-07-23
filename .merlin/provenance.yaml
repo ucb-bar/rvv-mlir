@@ -1,0 +1,15 @@
+family: vector_schedule
+fingerprint: 28589e9dcfc98cad6cd96ce1aa1f1031fe2f5bd75c80d419ff1528f9bd6613a3
+generated_at: 20260723T001518Z
+generator: merlin-target-publish
+layout_version: '1.0'
+lineage_depth: 0
+merlin_git_sha: 3f9cf97762b0b59cb96240ab8978e343b2d8fc80
+merlin_git_sha7: 3f9cf97
+package_id: rvv_tuned_v1_d1_vfmacc_outerproduct
+run_refs:
+- recorded-spike_verified
+source_package: out/artifacts/targets/rvv/rvv_tuned_v1_d1_vfmacc_outerproduct
+source_status: spike_verified
+target: rvv
+version: 1
