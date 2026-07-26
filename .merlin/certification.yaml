@@ -1,0 +1,10 @@
+certification: null
+certified_by_run: recorded-spike_verified
+detail: 'rvv gate: status=''spike_verified'' (need spike_verified, rtl_certified, or k1_verified)'
+gate: rvv_spike_verified
+layout_kind: vector_schedule
+oracle_cycles: null
+package_id: hand_v0_int8
+recorded_status: spike_verified
+status: pass
+target: rvv

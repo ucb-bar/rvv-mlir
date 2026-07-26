@@ -1,0 +1,15 @@
+family: vector_schedule
+fingerprint: e80f577a40ee1336001d7bf317060b911a36c046a13a2a60fd7045f83dda8459
+generated_at: 20260726T150945Z
+generator: merlin-target-publish
+layout_version: '1.0'
+lineage_depth: 0
+merlin_git_sha: 5d68ab4912964df1701af2bf6115cc52833f6204
+merlin_git_sha7: 5d68ab4
+package_id: hand_v0_int8
+run_refs:
+- recorded-spike_verified
+source_package: out/artifacts/targets/rvv/hand_v0_int8
+source_status: spike_verified
+target: rvv
+version: 0
