@@ -1,0 +1,15 @@
+family: vector_schedule
+fingerprint: cbb94cfd945a25ab2d4e36f922aeba58d48d5fabd60f94bb37e66b171d3f6b97
+generated_at: 20260726T150959Z
+generator: merlin-target-publish
+layout_version: '1.0'
+lineage_depth: 0
+merlin_git_sha: 5d68ab4912964df1701af2bf6115cc52833f6204
+merlin_git_sha7: 5d68ab4
+package_id: impr_tuned_wholemodel_vf_int8
+run_refs:
+- k1_int8_wholemodel_ab_tiny_llama
+source_package: out/artifacts/targets/rvv/impr_tuned_wholemodel_vf_int8
+source_status: k1_verified
+target: rvv
+version: 0

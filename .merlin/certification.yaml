@@ -1,0 +1,10 @@
+certification: pass
+certified_by_run: k1_int8_wholemodel_ab_tiny_llama
+detail: 'rvv gate: status=''k1_verified'' (need spike_verified, rtl_certified, or k1_verified)'
+gate: rvv_spike_verified
+layout_kind: vector_schedule
+oracle_cycles: null
+package_id: impr_tuned_wholemodel_vf_int8
+recorded_status: k1_verified
+status: pass
+target: rvv
