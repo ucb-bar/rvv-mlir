@@ -11,6 +11,7 @@ This repository is **generated** by Merlin's `merlin-target-publish` bridge. It 
 | `stable/rvv_tuned_v1_d1_vfmacc_outerproduct` | `rvv_tuned_v1_d1_vfmacc_outerproduct` | `fp32` | `spike_verified` | certified champion |
 | `baseline-int8_w8a8` | `hand_v0_int8` | `int8_w8a8` | `spike_verified` | frozen unoptimized control (the before/after reference) |
 | `stable/impr_tuned_wholemodel_vf_int8` | `impr_tuned_wholemodel_vf_int8` | `int8_w8a8` | `k1_verified` | certified champion |
+| `stable/sol_k1_int8` | `sol_k1_int8` | `int8_w8a8` | `k1_verified` | certified champion |
 
 ## Using a package
 
@@ -55,4 +56,4 @@ merlin-compile --workload <workload> --target rvv --verify
 
 Each commit on a package branch is one promotion, and its message embeds the champion package id, the internal run id, the Merlin git sha and the certification summary. History is the provenance trail; the branch tip is the current champion.
 
-Generated from Merlin `9b8a684`.
+Generated from Merlin `abe6cb3`.
