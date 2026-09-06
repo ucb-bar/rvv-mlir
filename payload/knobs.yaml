@@ -1,0 +1,44 @@
+# SOL — the current state of the line for int8 (W8A8) whole-model codegen on the SpaceMiT K1.
+#
+# Schedule is byte-identical to hand_v0_int8 (the frozen control). What this package adds is the
+# COMPILER FEATURE SET: the seven default-off levers that, measured on the board with ExecuTorch
+# interleaved in the same session, are the best known int8 configuration as of this publish.
+#
+# READ RESULTS.md BEFORE CITING THIS PACKAGE. It does NOT beat ExecuTorch on any model in the
+# study. It is published so the configuration, the measurements and the diagnosis are reproducible
+# and not lost, not because it is a win.
+schedule_file: schedule.mlir
+op_match:
+  # UNCHANGED from hand_v0_int8, and the `vector: [4, 8, 1]` here is a KNOWN LIMITER, kept so the
+  # published package reproduces the measured numbers exactly rather than quietly improving them.
+  # Measured: the int8 vwmacc runs at SEW=16/LMUL=m1 for 89.5% of its sites and mf2 for the rest,
+  # i.e. 16 and 8 elements against the 128 an e16,m8 group would give -- 12.5% of the achievable
+  # vector width on a VLEN=256 part. Widening this is an open lever (see RESULTS.md).
+  - {op: linalg.matmul,       tile: [4, 8, 1],    vector: [4, 8, 1]}
+  - {op: linalg.batch_matmul, tile: [1, 4, 8, 1], vector: [1, 4, 8, 1]}
+lowering_patterns:
+  - lower_contraction
+  - lower_masked_transfers
+  - lower_transpose
+  - lower_shape_cast
+lmul_policy: m1
+# WARNING, MEASURED: these cflags DO NOT REACH the model object on the K1 path. `mining.k1
+# .build_k1_binary` builds the model object's flags from -march/-mabi/-O2 plus the FEATURE cflags
+# and never reads `pkg.cflags`. So clang's own loop and SLP vectorizers are ON for our emitted
+# model.ll, and 69.0% of the vector instructions in resnet50's `forward` are clang's rather than
+# this schedule's. Honouring them removes 5,771 strided vlse32/vsse32 that clang introduced.
+# The declaration is kept because it states the INTENT; the gap is a defect, recorded in RESULTS.md.
+cflags: ["-march=rv64gcv", "-fno-vectorize", "-fno-slp-vectorize"]
+dtype_strategy: int8_w8a8
+# The seven levers. Each resolves by name in a fresh process (impr_features._single_name_lever_modules).
+compiler_features:
+  - prepack_weight_layout            # hoist weight transposes to build time (28 weights / 4.7 MiB per
+                                     # inference on lstmnetvit; 155 / 986.5 MiB on tiny_llama).
+                                     # REFUSES on resnet50 (no hoistable transposes) -- omit it there.
+  - perop_register_block             # per-op derived register block (155x blk_mm_4x16 on tiny_llama)
+  - promote_buffers_to_stack
+  - expand_memref_copy
+  - cse_through_provenance           # drop prov.* so upstream cse can collapse duplicated frontend work
+  - fuse_elementwise_post_contraction
+  - quantize_before_gather           # im2col: quantize A, not G(A); erases the f32 expansion
+expected_instructions: [vsetivli, vle8.v, vwmacc.vv, vsext.vf2]

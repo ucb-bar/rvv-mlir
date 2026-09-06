@@ -1,0 +1,12 @@
+certification: null
+certified_by_run: recorded-k1_verified
+detail: 'rvv gate: status=''k1_verified'' (need one of [''rtl_certified'', ''k1_verified'', ''spike_verified''])'
+gate: rvv_spike_verified
+layout_kind: vector_schedule
+oracle_cycles: null
+package_id: sol_k1_int8
+recorded_status: k1_verified
+rungs: []
+status: pass
+target: rvv
+tier: UNKNOWN
