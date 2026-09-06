@@ -1,0 +1,48 @@
+artifact_type: mlir_oot_target_backend
+authoring:
+  author: merlin int8/K1 study
+  generated_by_agent: true
+  mode: agent_generated_from_recipe
+build:
+  command:
+  - cmake
+  - --build
+  - '{package}/build'
+  configure:
+  - cmake
+  - -S
+  - '{package}'
+  - -B
+  - '{package}/build'
+  - -DCMAKE_BUILD_TYPE=Release
+  tool_output: build/bin/rvv-opt
+commands:
+  emit_command_buffer:
+    argv:
+    - '{tool}'
+    - --convert-iface-to-rvv
+    - --emit-command-buffer={output_json}
+    - '{input_mlir}'
+  lower_interface_to_target:
+    argv:
+    - '{tool}'
+    - --convert-iface-to-rvv
+    - '{input_mlir}'
+  lower_target_to_llvm:
+    argv:
+    - '{tool}'
+    - --convert-rvv-to-llvm
+    - '{input_mlir}'
+  parse:
+    argv:
+    - '{tool}'
+    - --verify-diagnostics
+    - '{input_mlir}'
+entrypoints:
+  tool: build/bin/rvv-opt
+family: vector_schedule
+integrity_exempt: false
+language: cpp
+layout_version: '1.0'
+package_id: sol_k1_int8
+target: rvv

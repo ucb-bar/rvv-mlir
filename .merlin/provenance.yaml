@@ -1,0 +1,15 @@
+family: vector_schedule
+fingerprint: c6aaf8ba5194aca46470422b3573ca58cd695a7ac73e62f58eb11add29d6fe58
+generated_at: 20260906T053210Z
+generator: merlin-target-publish
+layout_version: '1.0'
+lineage_depth: 0
+merlin_git_sha: abe6cb36438fc009b0f5a0cb7bf2f93e156ed9bf
+merlin_git_sha7: abe6cb3
+package_id: sol_k1_int8
+run_refs:
+- recorded-k1_verified
+source_package: out/artifacts/targets/rvv/sol_k1_int8
+source_status: k1_verified
+target: rvv
+version: 0
