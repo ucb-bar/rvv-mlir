@@ -1,59 +1,88 @@
 # rvv-mlir
 
-Merlin's published codegen packages for the **rvv** target.
+The **base RISC-V Vector (RVV) layer** for [Merlin](https://github.com/ucb-bar/merlin).
 
-This repository is **generated** by Merlin's `merlin-target-publish` bridge. It uses **branch-per-version** publishing, so *this* branch is only a directory — the packages themselves live on the branches below. Check one out to get a standalone, buildable out-of-tree tree plus its provenance under `.merlin/`.
+Everything in this repository is plain RVV. It contains no matrix-unit or OPU code and no
+chip-specific facts. Chip packages build on it and add only what their chip has:
 
-## Published packages
-
-| branch | package | dtype | status | what it is |
-|---|---|---|---|---|
-| `stable/rvv_tuned_v1_d1_vfmacc_outerproduct` | `rvv_tuned_v1_d1_vfmacc_outerproduct` | `fp32` | `spike_verified` | certified champion |
-| `baseline-int8_w8a8` | `hand_v0_int8` | `int8_w8a8` | `spike_verified` | frozen unoptimized control (the before/after reference) |
-| `stable/impr_tuned_wholemodel_vf_int8` | `impr_tuned_wholemodel_vf_int8` | `int8_w8a8` | `k1_verified` | certified champion |
-| `stable/sol_k1_int8` | `sol_k1_int8` | `int8_w8a8` | `k1_verified` | certified champion |
-
-## Using a package
-
-```sh
-git clone -b <branch> <this-repo> rvv-mlir
-cd rvv-mlir
+```
+rvv-mlir      base: the RVV target contract (vector unit, dtypes, requant), RVV schedules
+ ├── kodiak-mlir   Kodiak tapeout: Saturn + outer-product unit (OPU, BME encodings), its boards
+ └── iris-mlir     Iris: 2× Shuttle+Saturn(VME) + Rocket(DMA vector), its boards (VME unit: next)
 ```
 
-An `rvv` package is a **vector schedule**, not a dialect: the payload is a transform-dialect schedule plus the codegen knobs that go with it.
+A chip package's `provider.yaml` says `extends: {target: rvv, commit: <sha of this repo>}`, and its
+`contracts/overlay.yaml` holds only the delta. `merlin-target-compose` turns base + overlay into the
+effective contract and records the exact base revision, so a chip package inherits *all* of RVV and
+notices when this base moves.
 
-- `payload/schedule.mlir` — the transform-dialect schedule (tiling + vectorization of the contractions)
-- `payload/knobs.yaml` — `cflags`, `dtype_strategy`, `op_match` tile/vector sizes, `lmul_policy`, and the `expected_instructions` the emitted code must contain
-- `payload/baseline_runs/` — the recorded reference runs
+## What is on which branch
 
-Merlin consumes it through `merlin.mining.registry.load_rvv_package(<dir>)` and applies it with `merlin.mining.apply.apply_rvv_package(...)`; the schedule and cflags are the only things that change, so the rest of the pipeline is untouched.
+| branch | what it is |
+|---|---|
+| `main` (this one) | the RVV **support provider** Merlin selects for target `rvv`: `provider.yaml`, `contracts/target_contract.yaml`, `tests/` |
+| `stable/impr_tuned_wholemodel_vf_int8` | int8 W8A8 whole-model schedule (`vwmacc`), K1-verified; the RVV schedule the Kodiak builds use |
+| `stable/sol_k1_int8` | int8 speed-of-light schedule, K1-verified, with its analysis |
+| `baseline-int8_w8a8` | frozen, hand-written, unoptimized int8 control (the before/after reference) |
+| `stable/rvv_tuned_v1_d1_vfmacc_outerproduct` | fp32 schedule, spike-verified |
 
-The `baseline` branch is the FROZEN, hand-authored, unoptimized control. It exists so a speedup claim can be reproduced against the same before/after this repo published, not against a moving target.
+> **Note on `rvv_tuned_v1_d1_vfmacc_outerproduct`.** "outerproduct" is the name of MLIR's
+> `vector.contract` lowering strategy (`lower_contraction lowering_strategy = "outerproduct"`). It is
+> **not** the Saturn outer-product unit. That package emits ordinary RVV (`vfmul.vv` + `vfadd.vv`). The
+> OPU kernels are in `kodiak-mlir`.
 
-## Compiling a model with it
+Each schedule branch is a standalone package: `payload/schedule.mlir` (transform-dialect tiling and
+vectorization of the contractions), `payload/knobs.yaml` (cflags, dtype strategy, tile sizes, LMUL policy,
+expected instructions) and `.merlin/` provenance. Merlin applies one with
+`merlin.mining.apply.apply_rvv_package(...)`; only the schedule and cflags change.
 
-This repository is the **backend**: the target's codegen payload plus its capability contract. The thing that compiles a model is Merlin, which consumes this repo. You need both, and the loop is three commands.
+## Using it
 
 ```sh
-# 1. Merlin itself (the driver, the frontend, the runtime)
 git clone https://github.com/ucb-bar/merlin.git && cd merlin
-cp .env.example .env          # then point MERLIN_* at your toolchain / simulators
-
-# 2. Fetch THIS repo as the target's out-of-tree backend
-merlin-target-fetch rvv --champion <branch from the table above>
-
-# 3. Compile a workload onto it
-merlin-compile --workload <workload> --target rvv --verify
+uv sync --extra dev
+# The Merlin checkout vendors this provider at examples/rvv/support and selects it by default.
+# To use a clone of this repository instead:
+export MERLIN_TARGET_PATH=/path/to/rvv-mlir
+merlin-compile --workload <model> --dtype int8 --target rvv --board <board> --run spike --verify
 ```
 
-`merlin-target-fetch` clones the chosen branch into `out/build/generated/rvv/`, and the target registry then resolves the capability contract and this codegen payload together — so which champion you compile against is the branch you fetched, recorded rather than implied.
+For a specific chip, fetch its package. `merlin-target-fetch` follows `extends` and brings this base too:
 
-`merlin-compile` takes `--run {none,host,spike,verilator,zephyr,k1}` and `--verify`. Start with `--run host` to check the lowering is numerically right, then move up the oracle ladder; `--verify` gates the answer against the workload's golden rather than reporting that something merely ran.
+```sh
+merlin-target-fetch kodiak      # clones kodiak-mlir, then rvv-mlir at the commit kodiak pins
+```
 
-**What you need beyond this repo**: an LLVM/MLIR install matching the `llvm:` block of the package manifest (the out-of-tree C++ API moves between versions), a RISC-V toolchain, and whichever simulator your chosen `--run` needs. Merlin's `docs/guides/getting_started.md` is the base install; `docs/guides/adding_a_target.md` explains the contract this repo carries.
+## Adding a chip on top of RVV
 
-## Provenance
+1. Create `<chip>-mlir` with a `provider.yaml`:
+   ```yaml
+   schema: merlin.provider.v2
+   id: <chip>-support
+   target: <chip>
+   role: support
+   extends:
+     target: rvv
+     repo: https://github.com/ucb-bar/rvv-mlir.git
+     commit: <full sha of the rvv-mlir main you build on>
+   ```
+2. Put only the delta in `contracts/overlay.yaml`: the RTL config (`rtl_source`), extra compute units
+   (a matrix unit), `matrix_contract`, and your own `plugin` entries. The base plugin block is never
+   inherited, so executable support always lives in the package that declares it. Use `remove:` and
+   `replace:` (lists of dotted paths) for anything the base says that is not true of your chip.
+3. Put your boards in `boards.yaml` (Merlin's board schema; select with
+   `MERLIN_BOARD_CATALOG=<chip>-mlir`).
+4. Run `merlin-target-compose <chip>-mlir`. Commit the generated `contracts/target_contract.yaml`
+   and `contracts/composed.lock.yaml`. CI runs `merlin-target-compose --check`.
 
-Each commit on a package branch is one promotion, and its message embeds the champion package id, the internal run id, the Merlin git sha and the certification summary. History is the provenance trail; the branch tip is the current champion.
+Hardware revisions (RTL commits) are pinned in Merlin's single registry,
+`merlin/contract/hardware_pins.yaml`, and a chip package refers to them by pin id.
 
-Generated from Merlin `abe6cb3`.
+## Checks
+
+```sh
+python -m pytest tests        # with Merlin installed
+```
+
+`provenance.json` records the content hash of the contract. Nothing here claims hardware execution or
+candidate certification.
