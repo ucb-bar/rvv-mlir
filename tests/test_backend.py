@@ -2,14 +2,21 @@
 
 import hashlib
 import importlib.util
+import sys
+import tempfile
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = types.ModuleType("rvv_provider")
+PACKAGE.__path__ = [str(ROOT)]
+sys.modules[PACKAGE.__name__] = PACKAGE
 SPEC = importlib.util.spec_from_file_location(
-    "rvv_provider_backend", ROOT / "backend.py"
+    "rvv_provider.backend", ROOT / "backend.py"
 )
 assert SPEC is not None and SPEC.loader is not None
 BACKEND = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = BACKEND
 SPEC.loader.exec_module(BACKEND)
 
 
@@ -80,3 +87,20 @@ def test_multicore_schedule_variants_preserve_frozen_bytes():
         actual = BACKEND.parallel_transform_schedule(2, **kwargs)
         assert hashlib.sha256(actual.encode()).hexdigest() == expected
     assert BACKEND.vec_pre_schedule(frozenset()) is None
+
+
+def test_published_wholemodel_feature_is_owned_here_and_matches_frozen_bytes():
+    for names in (
+        {"accumulator_resident_wholemodel_vf"},
+        {"accumulator_resident_wholemodel_vf", "prepack_weight_layout"},
+    ):
+        features = BACKEND.normalize_features(names)
+        schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+        pipeline = BACKEND.build_pipeline("/RVV/schedule.mlir", features=features)
+        assert hashlib.sha256(schedule.encode()).hexdigest() == (
+            "93f7ea831e998e27ef8c52c9f93d6c3ec5bc033db3fdf484e7cd14156a1fddac"
+        )
+        normalized = pipeline.replace(tempfile.gettempdir(), "/TMP")
+        assert hashlib.sha256(normalized.encode()).hexdigest() == (
+            "e76ed9039baa36dd06a551ebe5ea4ff6a5b359f0aebd5db2dff4c5955a4f1dcb"
+        )

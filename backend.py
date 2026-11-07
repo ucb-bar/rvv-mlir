@@ -24,6 +24,56 @@ from merlin.llvmlower.compiler_api import (
     par_tag_for,
     splice_passes,
 )
+from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
+
+from .active_features import (
+    WHOLEMODEL_VF_NAME,
+    wholemodel_vf_pipeline,
+    wholemodel_vf_schedule,
+)
+
+
+def _legacy_feature(name: str) -> bool:
+    """Migration bridge for experimental features not yet extracted to this provider."""
+    from .legacy_features import register_existing
+
+    return register_existing(name, _FEATURES)
+
+
+_FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
+_FEATURES.register(
+    ImprFeature(
+        name=WHOLEMODEL_VF_NAME,
+        action_class="PASS",
+        description="Published whole-model-safe vfmacc.vf accumulator-resident schedule and lowering.",
+        edit_pipeline=wholemodel_vf_pipeline,
+        edit_schedule=lambda _text: wholemodel_vf_schedule(),
+        schedule_replace=True,
+    )
+)
+_FEATURES.register(
+    ImprFeature(
+        name="prepack_weight_layout",
+        action_class="PASS",
+        description="Weight-layout preparation selected before RVV pipeline construction.",
+    )
+)
+
+
+def normalize_features(features) -> frozenset[str]:
+    return _FEATURES.normalize(features)
+
+
+def apply_schedule(schedule_text: str, features: frozenset[str]) -> str:
+    return _FEATURES.apply_schedule(schedule_text, features)
+
+
+def apply_pipeline(passes: list[str], features: frozenset[str]) -> list[str]:
+    return _FEATURES.apply_pipeline(passes, features)
+
+
+def apply_cflags(cflags: list[str], features: frozenset[str]) -> list[str]:
+    return _FEATURES.apply_cflags(cflags, features)
 
 
 def vector_cflags(common: list[str] | tuple[str, ...]) -> list[str]:
@@ -277,11 +327,7 @@ def vec_pre_schedule(features: frozenset[str]) -> str | None:
     Returns None when the lever is off (then the pipeline string is byte-identical to the baseline),
     when the feature set splices no arms, or under ``MERLIN_VEC_AFTER_SPECIALIZE``.
     """
-    from merlin.llvmlower.impr_features import (
-        apply_schedule,
-        ensure_vec_noncontraction,
-        vec_noncontraction_lanes,
-    )
+    from .legacy_features import ensure_vec_noncontraction, vec_noncontraction_lanes
 
     if _vec_after_specialize():
         return None
@@ -495,7 +541,5 @@ def build_pipeline(
         "symbol-dce",
     ]
     if features:  # default-off impr-fork hooks; empty -> byte-identical
-        from merlin.llvmlower.impr_features import apply_pipeline
-
         passes = apply_pipeline(passes, features)
     return splice_passes(passes)
