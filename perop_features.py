@@ -18,6 +18,14 @@ PEROP_NR_SENTINEL_PREFIX = f"{PEROP_BLOCK_NAME}_nr"
 
 def _unresolved(name: str):
     def fail(_passes):
+        if name == PEROP_BLOCK_NAME:
+            raise RuntimeError(
+                f"{name!r} reached the lowering pipeline unresolved. It must be consumed by "
+                "runtime.backends.zephyr_model.prepare_for_lowering, which derives the per-op block table "
+                "from the prepared IR, tags the contractions, and replaces this sentinel with the concrete "
+                "ensure_perop_block(...) feature. Lowering with it still set would leave every contraction "
+                "untagged and silently scalar."
+            )
         raise RuntimeError(
             f"{name!r} reached the lowering pipeline unresolved. It must be consumed by "
             "runtime.backends.zephyr_model.prepare_for_lowering before lowering."
