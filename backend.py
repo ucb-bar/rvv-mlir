@@ -44,6 +44,7 @@ from .active_features import (
     wholemodel_vf_schedule,
 )
 from .grid_features import register_grid_features
+from .other_vector_features import register_other_vector_features
 from .vector_features import (
     ensure_vec_noncontraction,
     vec_noncontraction_lanes,
@@ -69,6 +70,14 @@ _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
 register_vec_noncontraction(_FEATURES)
 register_grid_features(_FEATURES)
 register_accumulator_grids(_FEATURES)
+register_other_vector_features(_FEATURES)
+_FEATURES.register(
+    ImprFeature(
+        name="approximate_transcendental_activation",
+        action_class="PASS",
+        description="Target-neutral activation polynomial rewrite before target lowering.",
+    )
+)
 _FEATURES.register(
     ImprFeature(
         name="erase_self_copy",
@@ -129,6 +138,12 @@ def accum_microkernel_marker() -> str:
     from .accum_microkernel import SCALARIZE_MARKER
 
     return SCALARIZE_MARKER
+
+
+def accum_microkernel_rewrite_source() -> str:
+    from .accum_microkernel import rewrite_source
+
+    return rewrite_source()
 
 
 def accum_microkernel_runner_source(*, tag_bmm_tails: bool = False) -> str:

@@ -240,3 +240,17 @@ def test_accumulator_microkernel_runner_source_is_provider_owned():
     for tag_bmm_tails, expected in cases.items():
         source = BACKEND.accum_microkernel_runner_source(tag_bmm_tails=tag_bmm_tails)
         assert hashlib.sha256(source.encode()).hexdigest() == expected
+
+
+def test_other_vector_schedule_variants_keep_frozen_outputs():
+    cases = {
+        "fused_vfmacc_contraction": "f1fba77bb3cc9c6259e1a516c1fc99db61722ecfdd826cdf2cd2865883978f0f",
+        "vectorized_transcendental_activation": "c848760b45d688fb685874416b929b15e84a91d985015d504fc1044fe6579f73",
+        "vectorize_reduction": "7d45088421a3616ffd0cd5730d4b321e7beace473ed7f58f611c909f463be134",
+        "vectorize_amax_reduction": "7a53f10063e4150caea8a543b2f050741881fc3348f2245fc9bd6dc8b240d5c3",
+    }
+    for name, expected in cases.items():
+        schedule = BACKEND.apply_schedule(
+            BACKEND.baseline_schedule_text(), BACKEND.normalize_features({name})
+        )
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected
