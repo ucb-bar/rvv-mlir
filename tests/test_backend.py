@@ -111,3 +111,11 @@ def test_published_wholemodel_feature_is_owned_here_and_matches_frozen_bytes():
         assert hashlib.sha256(normalized.encode()).hexdigest() == (
             "e76ed9039baa36dd06a551ebe5ea4ff6a5b359f0aebd5db2dff4c5955a4f1dcb"
         )
+
+
+def test_prepack_off_does_not_read_or_rewrite_bundle(tmp_path):
+    source = tmp_path / "bundle"
+    source.mkdir()
+    work = tmp_path / "work"
+    assert BACKEND.prepare_build_bundle(source, work, frozenset()) == source.resolve()
+    assert not work.exists()

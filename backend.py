@@ -76,6 +76,15 @@ def apply_cflags(cflags: list[str], features: frozenset[str]) -> list[str]:
     return _FEATURES.apply_cflags(cflags, features)
 
 
+def prepare_build_bundle(
+    src: Path | str, work: Path | str, features: frozenset[str] | None
+) -> Path:
+    """Apply package-owned weight layout preparation before RVV model lowering."""
+    from .prepack import prepare_build_bundle as prepare
+
+    return prepare(src, work, normalize_features(features or frozenset()))
+
+
 def vector_cflags(common: list[str] | tuple[str, ...]) -> list[str]:
     """Add the RVV ISA and controlled-vectorization policy to shared target flags."""
     return [*RVV_FLAGS, *common]
