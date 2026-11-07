@@ -184,3 +184,24 @@ def test_noncontraction_vector_arms_and_name_derived_points_keep_frozen_bytes():
         assert "erase_self_copy" in features
         schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
         assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+
+
+def test_rvv_register_tile_packing_and_lmul_grid_keep_frozen_outputs():
+    cases = {
+        "vfmacc_t_8_32_64": "70e09ba144da7a01e63bb92aac23bcc8c508ddd11c6c1bcae6c56bac8ee3760f",
+        "vfmacc_packed": "581def2d44503f5d5a8cee300a381021af6e02ba55b26fd0812ef637ff73160d",
+        "vfmacc_packed_8_32_64": "164a195257410b9bafdb4ed5cd4df0c54b69f7e3397db27f805a7285e4968738",
+        "fused_vfmacc_scalable": "393312d4e20b63c4644d01bd1c5a2601b36ab9fd071766abbdf627761a6d9356",
+    }
+    for name, expected in cases.items():
+        schedule = BACKEND.apply_schedule(
+            BACKEND.baseline_schedule_text(), BACKEND.normalize_features({name})
+        )
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+    assert BACKEND.apply_cflags(
+        ["-O2"], BACKEND.normalize_features({"lmul_group_m4"})
+    ) == [
+        "-O2",
+        "-mllvm",
+        "-riscv-v-register-bit-width-lmul=4",
+    ]

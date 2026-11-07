@@ -42,6 +42,7 @@ from .active_features import (
     wholemodel_vf_pipeline,
     wholemodel_vf_schedule,
 )
+from .grid_features import register_grid_features
 from .vector_features import (
     ensure_vec_noncontraction,
     vec_noncontraction_lanes,
@@ -65,6 +66,7 @@ def _legacy_feature(name: str) -> bool:
 
 _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
 register_vec_noncontraction(_FEATURES)
+register_grid_features(_FEATURES)
 _FEATURES.register(
     ImprFeature(
         name="erase_self_copy",
