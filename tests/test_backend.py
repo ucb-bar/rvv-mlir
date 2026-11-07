@@ -137,3 +137,11 @@ def test_prepack_off_does_not_read_or_rewrite_bundle(tmp_path):
     work = tmp_path / "work"
     assert BACKEND.prepare_build_bundle(source, work, frozenset()) == source.resolve()
     assert not work.exists()
+
+
+def test_published_fused_vfmacc_schedule_is_provider_owned():
+    features = BACKEND.normalize_features({"fused_vfmacc_tiled"})
+    schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+    assert hashlib.sha256(schedule.encode()).hexdigest() == (
+        "393312d4e20b63c4644d01bd1c5a2601b36ab9fd071766abbdf627761a6d9356"
+    )

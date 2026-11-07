@@ -281,3 +281,35 @@ def wholemodel_vf_schedule() -> str:
 
 def wholemodel_vf_pipeline(passes: list[str]) -> list[str]:
     return _accumulator_resident_v3_pipeline(passes)
+
+
+_VFMACC_TILED_SCHEDULE = """\
+module attributes {transform.with_named_sequence} {
+  transform.named_sequence @__transform_main(%arg0: !transform.any_op {transform.readonly}) {
+    %mm = transform.structured.match ops{["linalg.matmul"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %t, %l:3 = transform.structured.tile_using_for %mm tile_sizes [4, 16, 16] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+    transform.structured.vectorize %t vector_sizes [4, 16, 16] : !transform.any_op
+    %bm = transform.structured.match ops{["linalg.batch_matmul"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %bt, %bl:4 = transform.structured.tile_using_for %bm tile_sizes [1, 4, 16, 16] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+    transform.structured.vectorize %bt vector_sizes [1, 4, 16, 16] : !transform.any_op
+    %f = transform.structured.match ops{["func.func"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+    transform.apply_patterns to %f {
+      transform.apply_patterns.vector.transfer_permutation_patterns
+      transform.apply_patterns.vector.reduction_to_contract
+      transform.apply_patterns.vector.fold_arith_extension
+      transform.apply_patterns.vector.reduction_to_contract
+    } : !transform.any_op
+    transform.apply_patterns to %f {
+      transform.apply_patterns.vector.lower_contraction lowering_strategy = "outerproduct"
+    } : !transform.any_op
+    transform.apply_patterns to %f {
+      transform.apply_patterns.vector.lower_outerproduct
+    } : !transform.any_op
+    transform.yield
+  }
+}
+"""
+
+
+def fused_vfmacc_tiled_schedule() -> str:
+    return _VFMACC_TILED_SCHEDULE

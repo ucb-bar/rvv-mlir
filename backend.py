@@ -36,6 +36,7 @@ from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
 
 from .active_features import (
     WHOLEMODEL_VF_NAME,
+    fused_vfmacc_tiled_schedule,
     wholemodel_vf_pipeline,
     wholemodel_vf_schedule,
 )
@@ -64,6 +65,15 @@ _FEATURES.register(
         name="prepack_weight_layout",
         action_class="PASS",
         description="Weight-layout preparation selected before RVV pipeline construction.",
+    )
+)
+_FEATURES.register(
+    ImprFeature(
+        name="fused_vfmacc_tiled",
+        action_class="PASS",
+        description="Bounded tiled RVV fused-vfmacc Transform schedule.",
+        edit_schedule=lambda _text: fused_vfmacc_tiled_schedule(),
+        schedule_replace=True,
     )
 )
 
