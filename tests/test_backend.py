@@ -7,6 +7,9 @@ import tempfile
 import types
 from pathlib import Path
 
+import pytest
+from merlin.llvmlower.feature_registry import ImprFeature
+
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = types.ModuleType("rvv_provider")
 PACKAGE.__path__ = [str(ROOT)]
@@ -318,3 +321,24 @@ def test_multicore_feature_points_resolve_from_names():
     )
     assert BACKEND.parallel_grain_threshold(features) == 10000
     assert BACKEND.parallel_team_work(features) == 4096
+
+
+def test_chip_features_bind_per_target_without_mutating_rvv_registry():
+    extension = ImprFeature(
+        name="test_chip_marker",
+        action_class="PASS",
+        description="Test-only chip feature.",
+        edit_schedule=lambda schedule: schedule + "\n// chip\n",
+    )
+    bound = BACKEND.bind((extension,))
+    features = bound.normalize_features(
+        {"test_chip_marker", "fuse_quantize_round_convert_vec"}
+    )
+    assert "erase_self_copy" in features
+    assert bound.apply_schedule("schedule", frozenset({"test_chip_marker"})) == (
+        "schedule\n// chip\n"
+    )
+    with pytest.raises(KeyError):
+        BACKEND.normalize_features({"test_chip_marker"})
+    with pytest.raises(ValueError, match="duplicate"):
+        BACKEND.bind((extension, extension))

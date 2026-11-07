@@ -10,6 +10,7 @@ ordering and the schedule library. API_VERSION is checked by Merlin's loader.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 API_VERSION = 1
@@ -185,6 +186,16 @@ _FEATURES.register(
         name="fuse_quantize_round_convert",
         action_class="PASS",
         description="Target-neutral exact quantization rewrite performed before target lowering.",
+    )
+)
+_FEATURES.register(
+    ImprFeature(
+        name="fuse_quantize_round_convert_vec",
+        action_class="PASS",
+        description="Compose exact quantize rewrite with bounded RVV non-contraction vectorization.",
+        implies=frozenset(
+            {"fuse_quantize_round_convert", "vectorize_non_contraction_generics"}
+        ),
     )
 )
 _FEATURES.register(
@@ -539,7 +550,9 @@ def _vec_after_specialize() -> bool:
     return bool(os.environ.get("MERLIN_VEC_AFTER_SPECIALIZE"))
 
 
-def vec_pre_schedule(features: frozenset[str]) -> str | None:
+def vec_pre_schedule(
+    features: frozenset[str], *, _registry: FeatureRegistry | None = None
+) -> str | None:
     """The transform library that vectorizes the tagged non-contraction generics, or None.
 
     WHY THIS EXISTS -- a COVERAGE bug, measured, not inferred. The prepare pass tags every
@@ -595,8 +608,9 @@ def vec_pre_schedule(features: frozenset[str]) -> str | None:
     lanes = vec_noncontraction_lanes(features)
     if lanes is None:
         return None
-    text = apply_schedule(
-        _VEC_PRE_SKELETON, frozenset({ensure_vec_noncontraction(_FEATURES, lanes)})
+    registry = _FEATURES if _registry is None else _registry
+    text = registry.apply_schedule(
+        _VEC_PRE_SKELETON, frozenset({ensure_vec_noncontraction(registry, lanes)})
     )
     if text == _VEC_PRE_SKELETON:
         # The arms did not splice. Fail closed rather than preload a library whose entry point does
@@ -617,6 +631,8 @@ def build_pipeline(
     par_sched_path: str | Path | None = None,
     vec_sched_path: str | Path | None = None,
     perop_parallel: bool = False,
+    *,
+    _registry: FeatureRegistry | None = None,
 ) -> str:
     """Whole-module pipeline with the transform vectorization stage spliced in after
     named-op generalization (vectorize on tensors) and before bufferization, plus the
@@ -802,5 +818,64 @@ def build_pipeline(
         "symbol-dce",
     ]
     if features:  # default-off impr-fork hooks; empty -> byte-identical
-        passes = apply_pipeline(passes, features)
+        registry = _FEATURES if _registry is None else _registry
+        passes = registry.apply_pipeline(passes, features)
     return splice_passes(passes)
+
+
+class BoundBackendV1:
+    """One target's RVV backend with chip feature definitions isolated per build."""
+
+    API_VERSION = 1
+
+    def __init__(self, extension_features: tuple[ImprFeature, ...]):
+        registry = FeatureRegistry()
+        registry.entries.update(_FEATURES.entries)
+
+        def register_base(name: str) -> bool:
+            try:
+                feature = _FEATURES.get(name)
+            except KeyError:
+                return False
+            registry.register(feature)
+            return True
+
+        registry.lazy_register = register_base
+        for feature in extension_features:
+            if not isinstance(feature, ImprFeature):
+                raise TypeError(
+                    f"extension feature must be ImprFeature, got {type(feature).__name__}"
+                )
+            registry.register(feature)
+        self.registry = registry
+
+    def __getattr__(self, name: str):
+        return getattr(sys.modules[__name__], name)
+
+    def normalize_features(self, features) -> frozenset[str]:
+        return self.registry.normalize(features)
+
+    def apply_schedule(self, schedule_text: str, features: frozenset[str]) -> str:
+        return self.registry.apply_schedule(schedule_text, features)
+
+    def apply_pipeline(self, passes: list[str], features: frozenset[str]) -> list[str]:
+        return self.registry.apply_pipeline(passes, features)
+
+    def apply_cflags(self, cflags: list[str], features: frozenset[str]) -> list[str]:
+        return self.registry.apply_cflags(cflags, features)
+
+    def vec_pre_schedule(self, features: frozenset[str]) -> str | None:
+        return vec_pre_schedule(features, _registry=self.registry)
+
+    def build_pipeline(self, *args, **kwargs) -> str:
+        return build_pipeline(*args, _registry=self.registry, **kwargs)
+
+    def prepare_build_bundle(self, src: Path | str, work: Path | str, features) -> Path:
+        from .prepack import prepare_build_bundle as prepare
+
+        return prepare(src, work, self.normalize_features(features or frozenset()))
+
+
+def bind(extension_features: tuple[ImprFeature, ...] = ()) -> BoundBackendV1:
+    """Compose chip-specific named features without mutating the shared RVV provider."""
+    return BoundBackendV1(extension_features)
