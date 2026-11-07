@@ -283,6 +283,14 @@ def test_perop_request_and_concrete_schedule_are_provider_owned():
     assert BACKEND.normalize_features({"conv_register_block"}) == frozenset(
         {"conv_register_block"}
     )
+    from rvv_provider.requant_fuse import fused_arms
+
+    assert hashlib.sha256(fused_arms([[0, 4, 8, 2, 0, 8]]).encode()).hexdigest() == (
+        "bea207e9cd39acf29a8da02f0e5006024d9b0cbc4db028cc7f74afd697320ab4"
+    )
+    assert BACKEND.normalize_features(
+        {"fuse_requant_into_contraction_vec"}
+    ) == frozenset({"fuse_requant_into_contraction_vec"})
 
 
 def test_dynamic_v3_register_blocks_resolve_from_names_and_keep_frozen_schedules():

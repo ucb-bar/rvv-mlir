@@ -1114,7 +1114,7 @@ def runner_rewrite_src(
     # default runner source -- and the tagged module -- are byte-identical.
     pair_src = ""
     if pair_fuse:
-        from merlin.llvmlower import requant_fuse as _rf
+        from . import requant_fuse as _rf
 
         pair_src = (
             "\n\n_MERLIN_BLK_PREFIX = %r\n_MERLIN_PAR_PREFIX = %r\n_MERLIN_RQ_PREFIX = %r\n"
@@ -1360,7 +1360,7 @@ def _requant_fuse_arms(pairs, vec_epilogue: bool = False) -> str:
     """
     if not pairs:
         return ""
-    from merlin.llvmlower.requant_fuse import fused_arms
+    from .requant_fuse import fused_arms
 
     return fused_arms(pairs, vec_epilogue)
 

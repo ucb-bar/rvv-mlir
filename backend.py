@@ -79,6 +79,7 @@ from .perop_features import (
 from .perop_features import (
     register_perop_features,
 )
+from .requant_fuse import ensure_registered as register_requant_features
 from .vector_features import (
     ensure_vec_noncontraction,
     vec_noncontraction_lanes,
@@ -111,6 +112,7 @@ register_accumulator_grids(_FEATURES)
 register_other_vector_features(_FEATURES)
 register_perop_features(_FEATURES)
 register_conv_block_feature(_FEATURES)
+register_requant_features(_FEATURES)
 _FEATURES.register(
     ImprFeature(
         name="approximate_transcendental_activation",
