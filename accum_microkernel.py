@@ -426,7 +426,7 @@ def run_source(*, tag_bmm_tails: bool = False) -> str:
     deallocation passes run -- goes through it: sinking a free on this runner is verified exactly as on
     the plain one, instead of being refused for want of the check. The uniform-fill-copy stage is
     spliced with the plain runner's argv slot for the same reason: selected, it must run here too."""
-    from merlin.llvmlower.pipeline import (
+    from merlin.llvmlower.runner_shared import (
         _UNIFORM_FILL_COPY_MID_SRC,
         _UNIFORM_FILL_COPY_PRELUDE,
         DEALLOC_CHECK_PRELUDE,
