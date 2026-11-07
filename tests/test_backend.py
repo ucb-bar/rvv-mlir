@@ -351,3 +351,27 @@ def test_rvv_register_block_legality_stays_with_provider():
     assert not _rvv_blocking_lowers(4, 16, 17, 128)
     assert _rvv_blocking_lowers(1, 16, 17, 24)
     assert _rvv_best_block(4, 16, [(8, 128), (4, 24)]) == (4, 8)
+
+
+def test_rvv_schedule_renderer_and_shape_policy_live_in_provider():
+    from merlin.kernels.microkernel import ContractionShape, MicrokernelSpec
+    from rvv_provider.microkernel_policy import _rvv_microkernel_shape_policy
+
+    knobs = {
+        "op_match": [{"op": "linalg.matmul", "tile": [4, 8, 1], "vector": [4, 8, 1]}],
+        "lowering_patterns": ["lower_contraction", "lower_shape_cast"],
+    }
+    schedule = BACKEND.render_schedule(knobs)
+    assert hashlib.sha256(schedule.encode()).hexdigest() == (
+        "0292f91afb12f27054f6b5192b3b6eafd5238be9492f44309748c19444c9fb4f"
+    )
+    shapes = (
+        ContractionShape("linalg.matmul", (1, 16), (32,)),
+        ContractionShape("linalg.batch_matmul", (1, 4, 8), (32,)),
+    )
+    assert _rvv_microkernel_shape_policy(
+        MicrokernelSpec(MR=4, NR=16, KC=16), shapes
+    ) == [
+        "accum_resident_v3p_1_16_4_8_16",
+        "erase_self_copy",
+    ]

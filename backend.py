@@ -207,6 +207,13 @@ _FEATURES.register(
         schedule_replace=True,
     )
 )
+_FEATURES.register(
+    ImprFeature(
+        name="intrinsic_microkernel",
+        action_class="CODEGEN",
+        description="RVV hand-written intrinsic microkernel ceiling reference; no codegen edit.",
+    )
+)
 
 
 def normalize_features(features) -> frozenset[str]:
@@ -879,3 +886,22 @@ class BoundBackendV1:
 def bind(extension_features: tuple[ImprFeature, ...] = ()) -> BoundBackendV1:
     """Compose chip-specific named features without mutating the shared RVV provider."""
     return BoundBackendV1(extension_features)
+
+
+def render_schedule(knobs: dict) -> str:
+    from .microkernel_policy import render_schedule as render
+
+    return render(knobs)
+
+
+def register_microkernel_resolver() -> None:
+    from .microkernel_policy import _register_rvv_microkernel_resolver
+
+    _register_rvv_microkernel_resolver()
+
+
+def microkernel_features(knobs: dict, shapes=()) -> list[str]:
+    from .microkernel_policy import microkernel_features as resolve
+
+    register_microkernel_resolver()
+    return resolve(knobs, "rvv", shapes)
