@@ -18,8 +18,12 @@ RVV_FLAGS = ("-march=rv64gcv", "-fno-vectorize", "-fno-slp-vectorize")
 DEFAULT_CFLAGS = RVV_FLAGS
 
 # Deallocation and generic pass-list splicing remain shared Merlin infrastructure.
-from merlin.llvmlower.compiler_api import PipelineError, class_token, par_tag_for
-from merlin.llvmlower.pipeline import _splice
+from merlin.llvmlower.compiler_api import (
+    PipelineError,
+    class_token,
+    par_tag_for,
+    splice_passes,
+)
 
 
 def vector_cflags(common: list[str] | tuple[str, ...]) -> list[str]:
@@ -494,4 +498,4 @@ def build_pipeline(
         from merlin.llvmlower.impr_features import apply_pipeline
 
         passes = apply_pipeline(passes, features)
-    return _splice(passes)
+    return splice_passes(passes)
