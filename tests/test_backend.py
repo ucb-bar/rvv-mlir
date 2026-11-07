@@ -254,6 +254,10 @@ def test_other_vector_schedule_variants_keep_frozen_outputs():
             BACKEND.baseline_schedule_text(), BACKEND.normalize_features({name})
         )
         assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+    assert BACKEND.apply_cflags(
+        ["-march=rv64gcv", "-fno-vectorize", "-fno-slp-vectorize", "-O2"],
+        BACKEND.normalize_features({"vectorize_scalar_residue"}),
+    ) == ["-march=rv64gcv", "-O2"]
 
 
 def test_perop_request_and_concrete_schedule_are_provider_owned():
