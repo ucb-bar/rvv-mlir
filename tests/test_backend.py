@@ -229,3 +229,14 @@ def test_accumulator_resident_v3_padding_variants_keep_frozen_outputs():
         features = BACKEND.normalize_features({name})
         schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
         assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+
+
+def test_accumulator_microkernel_runner_source_is_provider_owned():
+    assert BACKEND.accum_microkernel_marker() == "__merlin_scalarize_a__"
+    cases = {
+        False: "d845c343b5ccb5713d523e9a275af1b5d15e8ea972ec40471fdff0534efb8f20",
+        True: "c185f6dc1f5f468e7e5aba6f69eecf25ad6f099b27c6f0cc27b07985222c0be5",
+    }
+    for tag_bmm_tails, expected in cases.items():
+        source = BACKEND.accum_microkernel_runner_source(tag_bmm_tails=tag_bmm_tails)
+        assert hashlib.sha256(source.encode()).hexdigest() == expected

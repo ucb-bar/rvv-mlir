@@ -125,6 +125,18 @@ def normalize_features(features) -> frozenset[str]:
     return _FEATURES.normalize(features)
 
 
+def accum_microkernel_marker() -> str:
+    from .accum_microkernel import SCALARIZE_MARKER
+
+    return SCALARIZE_MARKER
+
+
+def accum_microkernel_runner_source(*, tag_bmm_tails: bool = False) -> str:
+    from .accum_microkernel import run_source
+
+    return run_source(tag_bmm_tails=tag_bmm_tails)
+
+
 def apply_schedule(schedule_text: str, features: frozenset[str]) -> str:
     return _FEATURES.apply_schedule(schedule_text, features)
 
