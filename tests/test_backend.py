@@ -69,6 +69,13 @@ def test_active_schedules_are_byte_identical_to_the_published_payloads():
     assert prepack.read_bytes() == champion.read_bytes()
     assert BACKEND.schedule_path().name == BACKEND.DEFAULT_SCHEDULE
     assert BACKEND.baseline_schedule_text() == champion.read_text(encoding="utf-8")
+    fp32 = (
+        BACKEND.schedule_path("rvv_tuned_v1_d1_vfmacc_outerproduct") / "schedule.mlir"
+    )
+    assert hashlib.sha256(fp32.read_bytes()).hexdigest() == (
+        "dec409ddd8a08eec90f4aefea8e4f73d5f02770b5d358bc6c340c73add9fc3c1"
+    )
+    assert BACKEND.schedule_path("hand_v0_int8").is_dir()
 
 
 def test_multicore_schedule_variants_preserve_frozen_bytes():
