@@ -342,3 +342,12 @@ def test_chip_features_bind_per_target_without_mutating_rvv_registry():
         BACKEND.normalize_features({"test_chip_marker"})
     with pytest.raises(ValueError, match="duplicate"):
         BACKEND.bind((extension, extension))
+
+
+def test_rvv_register_block_legality_stays_with_provider():
+    from rvv_provider.blocking_cost import _rvv_best_block, _rvv_blocking_lowers
+
+    assert _rvv_blocking_lowers(4, 16, 8, 128)
+    assert not _rvv_blocking_lowers(4, 16, 17, 128)
+    assert _rvv_blocking_lowers(1, 16, 17, 24)
+    assert _rvv_best_block(4, 16, [(8, 128), (4, 24)]) == (4, 8)
