@@ -16,6 +16,14 @@ API_VERSION = 1
 DEFAULT_SCHEDULE = "impr_tuned_wholemodel_vf_int8"
 RVV_FLAGS = ("-march=rv64gcv", "-fno-vectorize", "-fno-slp-vectorize")
 DEFAULT_CFLAGS = RVV_FLAGS
+SPIKE_CFLAGS = (
+    "-march=rv64gcv",
+    "-mabi=lp64d",
+    "-mcmodel=medany",
+    "-O2",
+    "-ffreestanding",
+    "-fno-builtin",
+)
 
 # Deallocation and generic pass-list splicing remain shared Merlin infrastructure.
 from merlin.llvmlower.compiler_api import (
@@ -88,6 +96,22 @@ def prepare_build_bundle(
 def vector_cflags(common: list[str] | tuple[str, ...]) -> list[str]:
     """Add the RVV ISA and controlled-vectorization policy to shared target flags."""
     return [*RVV_FLAGS, *common]
+
+
+def spike_cflags() -> list[str]:
+    """Frozen RVV bare-metal model flags for the Spike backend."""
+    return list(SPIKE_CFLAGS)
+
+
+def spike_harness_cflags(model_flags: list[str]) -> list[str]:
+    """Use the selected ISA/ABI with GCC-compatible harness options."""
+    flags = spike_cflags()
+    for prefix in ("-march=", "-mabi=", "-mcmodel="):
+        selected = [flag for flag in model_flags if flag.startswith(prefix)]
+        if selected:
+            flags = [flag for flag in flags if not flag.startswith(prefix)]
+            flags.append(selected[-1])
+    return flags
 
 
 def schedule_path(name: str = DEFAULT_SCHEDULE) -> Path:

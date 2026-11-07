@@ -44,6 +44,24 @@ def test_backend_pipeline_matches_frozen_compiler_pass_order(monkeypatch):
         "-ffreestanding",
         "-fno-builtin",
     ]
+    assert BACKEND.spike_cflags() == [
+        "-march=rv64gcv",
+        "-mabi=lp64d",
+        "-mcmodel=medany",
+        "-O2",
+        "-ffreestanding",
+        "-fno-builtin",
+    ]
+    assert BACKEND.spike_harness_cflags(
+        ["-march=rv64gcv_zvl256b", "-mabi=lp64d", "-mcmodel=medany"]
+    ) == [
+        "-O2",
+        "-ffreestanding",
+        "-fno-builtin",
+        "-march=rv64gcv_zvl256b",
+        "-mabi=lp64d",
+        "-mcmodel=medany",
+    ]
     serial = BACKEND.build_pipeline("/RVV/schedule.mlir")
     parallel = BACKEND.build_pipeline(
         "/RVV/schedule.mlir", par_sched_path="/RVV/parallel.mlir", perop_parallel=True
