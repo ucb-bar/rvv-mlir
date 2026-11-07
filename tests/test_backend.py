@@ -46,3 +46,21 @@ def test_active_schedules_are_byte_identical_to_the_published_payloads():
     )
     assert prepack.read_bytes() == champion.read_bytes()
     assert BACKEND.schedule_path().name == BACKEND.DEFAULT_SCHEDULE
+
+
+def test_multicore_schedule_variants_preserve_frozen_bytes():
+    cases = (
+        ({}, "43f9187c5d1d00ccdafc741116a266a3aad96cd61d247611697130f76a02420b"),
+        (
+            {"tile_aligned": True},
+            "56897f03d76cbc3e4457698f0c55907a3c684d2d20de8ab8cfe3e70868c5197c",
+        ),
+        (
+            {"chunks": []},
+            "433d3ea18b98b3fedee2b2a0d1a49c51fc4df6cbb8a218b8b6112b149d980aa8",
+        ),
+    )
+    for kwargs, expected in cases:
+        actual = BACKEND.parallel_transform_schedule(2, **kwargs)
+        assert hashlib.sha256(actual.encode()).hexdigest() == expected
+    assert BACKEND.vec_pre_schedule(frozenset()) is None
