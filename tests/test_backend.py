@@ -407,3 +407,20 @@ assert backend.weight_panel_api().__name__ == 'rvv_provider.weight_panel'
         capture_output=True,
         text=True,
     )
+
+
+def test_provider_weight_panel_pack_preserves_exact_values():
+    import numpy as np
+
+    panel = BACKEND.weight_panel_api()
+    arg = panel.PackedArg(
+        arg=0, orig_shape=(3, 8), elem="i8", steps=(), m=2, k=3, n=8, mr=2, nr=4
+    )
+    weight = np.arange(24, dtype=np.int8).reshape(3, 8)
+    packed = panel.pack_bytes(weight, arg)
+    assert packed.shape == (2, 3, 4)
+    np.testing.assert_array_equal(packed[0], weight[:, :4])
+    np.testing.assert_array_equal(packed[1], weight[:, 4:])
+    np.testing.assert_array_equal(packed.transpose(1, 0, 2).reshape(3, 8), weight)
+    with pytest.raises(panel.PanelPackRefused, match="layout chain yields"):
+        panel.pack_bytes(weight[:, :4], arg)
