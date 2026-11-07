@@ -471,3 +471,135 @@ def wholemodel_schedule() -> str:
 
 def wholemodel_pipeline(passes: list[str]) -> list[str]:
     return _accumulator_resident_pipeline(passes)
+
+
+# RVV typed M-pad and BMM-pad accumulator-resident variants.
+def _zero_attr(t: str) -> str:
+    """The MLIR zero literal for element type ``t``, derived from the type rather than tabulated.
+
+    Integer types take ``0 : iN``; floating types take the f-literal form. A tabulated map would go
+    stale the first time a new element type appears, and the failure is silent (scalar fallback).
+    """
+    t = str(t).strip()
+    if t.startswith("i") and t[1:].isdigit():
+        return f"0 : {t}"
+    if t.startswith(("f", "bf")):
+        return f"0.000000e+00 : {t}"
+    raise ValueError(
+        f"no zero literal derivable for element type {t!r}; add the rule rather than "
+        "letting the schedule pad with a wrongly-typed value"
+    )
+
+
+def _accumulator_resident_v3_mrpad_pre_schedule(
+    MR: int,
+    NR: int,
+    KC: int,
+    NR_bmm: int | None = None,
+    elem_types: tuple[str, str, str] | None = None,
+) -> str:
+    """PER-MATMUL MR register block with an M-PAD tail — the general fix for the M=1/M%MR!=0 case.
+
+    ``accumulator_resident_wholemodel_vf`` clamps the matmul M tile to MR_mm=1 (no A-operand reuse:
+    1 B-load + 1 A-load per FMA = 2.0 loads/useful-FMA). ``..._vf_mr4`` raises it to MR=4 (A-reuse,
+    1.25 loads/FMA) but is ONLY correct where M%4==0: on M not divisible by MR the partial M tile
+    needs a masked ``vector.transfer_write`` (``vector<MRxNR>`` into ``tensor<(M%MR)xNR>``) that
+    LLVM-23 rejects with a multi-op ``vector.mask`` PipelineError -> (measured) NR=8/non-resident/119
+    in-loop spills at M=17, and an outright PipelineError -> silent scalar fallback at M=1.
+
+    This schedule handles the tail the way the hand shim does (``round_up_mr``): it PADS the matmul M
+    dimension UP to the next multiple of MR BEFORE tiling (``transform.structured.pad`` on padding
+    dimension 0, padding value 0.0). Every matmul then register-blocks CLEANLY at MR — the M tile is
+    always FULL (no masked write, no PipelineError), so M=1 pads to MR, M=17 pads to 20, M=64 stays 64,
+    each getting the same MR resident-accumulator vfmacc.vf register block. ``transform.structured.pad``
+    threads a ``tensor.extract_slice`` back to the original M rows (the ``copy_back`` result), so the
+    real output is BIT-EXACT: the padded rows are ``0-row @ B = 0`` and are discarded; only the [0:M]
+    slice is written back. This is per-matmul (each op pads to ITS OWN next multiple of MR — a general
+    tail rule, not a per-model constant), and it composes with the v3 subset-hoist + A-scalarization
+    pipeline unchanged (it still stops at ``vector.contract``).
+
+    The batch_matmul (attention) path is IDENTICAL to ``accumulator_resident_wholemodel_vf`` — MR=4 M
+    tile + the ``NR_bmm`` N-tail clamp — so this feature only upgrades the ``linalg.matmul`` path from
+    the MR=1 clamp to a padded-MR register block; the proven whole-model attention path is untouched.
+    """
+    NB = NR_bmm if NR_bmm is not None else NR
+    # The padding value must have the ELEMENT TYPE OF THE OPERAND IT PADS. This was a single f32
+    # literal reused for all three, which is correct only while every contraction is f32 -- and
+    # `transform.structured.pad` does not warn, it hard-errors:
+    #   'transform.structured.pad' op expects a padding value of type 'i8', got 0.000000e+00 : f32
+    # A transform-interpreter error is a PipelineError, which the lowering catches as a whole-model
+    # SILENT SCALAR FALLBACK -- the failure mode is "mysteriously slow", not "build failed".
+    # It has never fired because the int8 datapath rewrites every linalg.matmul into a
+    # linalg.generic, so no i8 matmul reaches this schedule at all (see the module docstring note on
+    # named-op erasure). It fires the moment that is fixed, which is why it is fixed first.
+    za, zb, zc = (_zero_attr(t) for t in (elem_types or ("f32", "f32", "f32")))
+    # copy_back_op = "linalg.copy" (NOT the default bufferization.materialize_in_destination): the
+    # pipeline's canonicalize/cse merges the many identical `linalg.fill 0 -> tensor<MxNxf32>` matmul
+    # inits into ONE shared value, and materialize_in_destination copies each padded result back into
+    # that SHARED fill buffer -> one-shot-bufferize sees N writes aliasing one buffer -> "cannot avoid
+    # RaW conflict" -> whole-model PipelineError -> silent scalar fallback (this is EXACTLY what breaks
+    # the pre-existing vf_mr4 on rdt2). A `linalg.copy` copy-back (paired with eliminate-empty-tensors
+    # in the edit_pipeline) bufferizes each padded matmul into its own buffer, so the model lowers
+    # vectorized. Verified: shared-fill reproducer + rdt2/bitvla whole-model.
+    return f"""\
+module attributes {{transform.with_named_sequence}} {{
+  transform.named_sequence @__transform_main(%arg0: !transform.any_op {{transform.readonly}}) {{
+    %mm = transform.structured.match ops{{["linalg.matmul"]}} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %padded, %pad, %cp = transform.structured.pad %mm pad_to_multiple_of [{MR}] {{padding_values = [{za}, {zb}, {zc}], padding_dimensions = [0], copy_back_op = "linalg.copy"}} : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+    %t1, %lmn:2 = transform.structured.tile_using_for %padded tile_sizes [{MR}, {NR}, 0] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+    %mm2 = transform.structured.match ops{{["linalg.matmul"]}} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %t2, %lk = transform.structured.tile_using_for %mm2 tile_sizes [0, 0, 1] : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+    transform.structured.vectorize %t2 vector_sizes [{MR}, {NR}, 1] : !transform.any_op
+    %bm = transform.structured.match ops{{["linalg.batch_matmul"]}} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %bt1, %blmn:3 = transform.structured.tile_using_for %bm tile_sizes [1, {MR}, {NB}, 0] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+    %bm2 = transform.structured.match ops{{["linalg.batch_matmul"]}} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %bt2, %blk = transform.structured.tile_using_for %bm2 tile_sizes [0, 0, 0, 1] : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+    transform.structured.vectorize %bt2 vector_sizes [1, {MR}, {NB}, 1] : !transform.any_op
+    %f = transform.structured.match ops{{["func.func"]}} in %arg0 : (!transform.any_op) -> !transform.any_op
+    transform.apply_patterns to %f {{
+      transform.apply_patterns.vector.transfer_permutation_patterns
+      transform.apply_patterns.vector.reduction_to_contract
+      transform.apply_patterns.vector.fold_arith_extension
+      transform.apply_patterns.vector.reduction_to_contract
+    }} : !transform.any_op
+    transform.yield
+  }}
+}}
+"""
+
+
+def _accumulator_resident_v3_mrpad_pipeline(passes: list[str]) -> list[str]:
+    """The v3 (.vf subset-hoist + A-scalarize) pipeline PLUS ``eliminate-empty-tensors`` before
+    one-shot-bufferize — required by the M-pad copy-back.
+
+    The M-pad schedule copies each padded matmul result back with ``linalg.copy`` (not the default
+    ``materialize_in_destination``); the pair (linalg.copy copy-back + eliminate-empty-tensors) is what
+    lets one-shot-bufferize give each padded matmul its OWN buffer instead of aliasing the CSE-shared
+    zero-fill init across every matmul (the "cannot avoid RaW conflict" whole-model PipelineError).
+    Reuses ``_packed_eliminate_empties`` (same insertion the packed feature uses). Only runs when this
+    feature is enabled; baseline pipeline untouched."""
+    from .grid_features import _packed_eliminate_empties
+
+    return _packed_eliminate_empties(_accumulator_resident_v3_pipeline(passes))
+
+
+def _accumulator_resident_v3_bmmpad_pipeline(passes: list[str]) -> list[str]:
+    """Pad odd BMM extents before the parallel transform, then run v3 lowering.
+
+    Padding inside an ``scf.forall`` leaves its temporary allocation inside an
+    allocation scope that becomes multi-block during CFG lowering.  Running the
+    dedicated pad entry before ``__transform_parallel_main`` keeps the allocation
+    outside the worker region; the later main entry only tiles/vectorizes.
+    """
+    out = _accumulator_resident_v3_mrpad_pipeline(passes)
+    anchor = next(
+        i
+        for i, p in enumerate(out)
+        if "transform-interpreter{entry-point=__transform_main}" in p
+    )
+    parallel = next(
+        (i for i, p in enumerate(out) if "entry-point=__transform_parallel_main" in p),
+        anchor,
+    )
+    out.insert(parallel, "transform-interpreter{entry-point=__transform_bmm_pad}")
+    return out

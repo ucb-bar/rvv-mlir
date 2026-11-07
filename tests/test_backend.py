@@ -217,3 +217,15 @@ def test_accumulator_resident_v1_v2_grids_keep_frozen_outputs():
         features = BACKEND.normalize_features({name})
         schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
         assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+
+
+def test_accumulator_resident_v3_padding_variants_keep_frozen_outputs():
+    cases = {
+        "accumulator_resident_wholemodel_vf_bmmpad": "662d7ec4d9a11a0ce1120c1129d58f179804e7ed219ef5a792c35981da7ac7e3",
+        "accumulator_resident_wholemodel_vf_mrpad_i8_i8_i32_mr1_nr64_nb16": "a1c928ee69c01ef59aa470c860db261a4f9c4b03468c96d8f62934241b319cb2",
+        "accum_resident_v3_8_16_16": "4a06e3b87535e29ecf992aad6e86ad0f6d4c236c28c24b01cc1ffdd85c6c4340",
+    }
+    for name, expected in cases.items():
+        features = BACKEND.normalize_features({name})
+        schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected
