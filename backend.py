@@ -14,15 +14,23 @@ from pathlib import Path
 
 API_VERSION = 1
 DEFAULT_SCHEDULE = "impr_tuned_wholemodel_vf_int8"
+RVV_FLAGS = ("-march=rv64gcv", "-fno-vectorize", "-fno-slp-vectorize")
+DEFAULT_CFLAGS = RVV_FLAGS
 
 # Deallocation and generic pass-list splicing remain shared Merlin infrastructure.
-from merlin.llvmlower.pipeline import PipelineError, _splice
+from merlin.llvmlower.compiler_api import PipelineError, class_token, par_tag_for
+from merlin.llvmlower.pipeline import _splice
+
+
+def vector_cflags(common: list[str] | tuple[str, ...]) -> list[str]:
+    """Add the RVV ISA and controlled-vectorization policy to shared target flags."""
+    return [*RVV_FLAGS, *common]
 
 
 def schedule_path(name: str = DEFAULT_SCHEDULE) -> Path:
     """Resolve a schedule shipped by this exact provider revision."""
-    if name not in {"impr_tuned_wholemodel_vf_int8", "kodiak_prepack_w8a8_v1"}:
-        raise KeyError(f"RVV schedule {name!r} is not in this provider revision")
+    if not isinstance(name, str) or not name.isidentifier():
+        raise ValueError(f"invalid RVV schedule name {name!r}")
     root = Path(__file__).resolve().parent / "schedules" / name
     for file in ("manifest.yaml", "knobs.yaml", "schedule.mlir"):
         if not (root / file).is_file():
@@ -153,8 +161,6 @@ def _perop_parallel_schedule(chunks: list) -> str:
     exactly as the serial build does and the image runs on one core. Said rather than silently
     produced -- see :func:`lower_to_llvm_ir`, which prints it.
     """
-    from merlin.llvmlower.perop_blocks import class_token, par_tag_for
-
     body = []
     for i, (op, tiles) in enumerate(chunks):
         tiles = tuple(int(t) for t in tiles)

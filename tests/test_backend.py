@@ -22,6 +22,21 @@ def test_backend_pipeline_matches_frozen_compiler_pass_order(monkeypatch):
     ):
         monkeypatch.delenv(key, raising=False)
     assert BACKEND.API_VERSION == 1
+    assert BACKEND.DEFAULT_CFLAGS == (
+        "-march=rv64gcv",
+        "-fno-vectorize",
+        "-fno-slp-vectorize",
+    )
+    assert BACKEND.vector_cflags(
+        ["-mabi=lp64d", "-mcmodel=medany", "-O2", "-ffreestanding", "-fno-builtin"]
+    ) == [
+        *BACKEND.DEFAULT_CFLAGS,
+        "-mabi=lp64d",
+        "-mcmodel=medany",
+        "-O2",
+        "-ffreestanding",
+        "-fno-builtin",
+    ]
     serial = BACKEND.build_pipeline("/RVV/schedule.mlir")
     parallel = BACKEND.build_pipeline(
         "/RVV/schedule.mlir", par_sched_path="/RVV/parallel.mlir", perop_parallel=True
