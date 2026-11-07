@@ -2,6 +2,7 @@
 
 import hashlib
 import importlib.util
+import subprocess
 import sys
 import tempfile
 import types
@@ -375,3 +376,34 @@ def test_rvv_schedule_renderer_and_shape_policy_live_in_provider():
         "accum_resident_v3p_1_16_4_8_16",
         "erase_self_copy",
     ]
+
+
+def test_all_95_existing_levers_resolve_without_legacy_vector_registry():
+    script = """
+import importlib.util, sys, types
+from pathlib import Path
+from merlin.llvmlower.feature_registry import ImprFeature
+root = Path.cwd()
+package = types.ModuleType('rvv_provider')
+package.__path__ = [str(root)]
+sys.modules[package.__name__] = package
+spec = importlib.util.spec_from_file_location('rvv_provider.backend', root / 'backend.py')
+backend = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = backend
+spec.loader.exec_module(backend)
+names = (root / 'tests/feature_names_v1.txt').read_text().splitlines()
+assert len(names) == 95
+bound = backend.bind((ImprFeature(name='opu_matmul', action_class='PASS', description='chip extension'),))
+for name in names:
+    assert bound.registry.get(name).name == name
+assert 'merlin.llvmlower.impr_features' not in sys.modules
+assert backend.im2col_pack_api().__name__ == 'rvv_provider.im2col_pack'
+assert backend.weight_panel_api().__name__ == 'rvv_provider.weight_panel'
+"""
+    subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )

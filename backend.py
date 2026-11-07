@@ -63,6 +63,7 @@ from .dynamic_accumulator import (
     register_from_name as register_dynamic_accumulator_from_name,
 )
 from .grid_features import register_grid_features
+from .im2col_pack import _feature as _im2col_pack_feature
 from .other_vector_features import register_other_vector_features
 from .perop_blocks import ensure_registered as register_conv_block_feature
 from .perop_features import (
@@ -91,6 +92,7 @@ from .vector_features import (
 from .vector_features import (
     register_from_name as register_vec_noncontraction_from_name,
 )
+from .weight_panel import _feature as _weight_panel_feature
 
 
 def _legacy_feature(name: str) -> bool:
@@ -110,9 +112,7 @@ def _legacy_feature(name: str) -> bool:
     else:
         _FEATURES.register(shared)
         return True
-    from .legacy_features import register_existing
-
-    return register_existing(name, _FEATURES)
+    return False
 
 
 _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
@@ -123,6 +123,8 @@ register_other_vector_features(_FEATURES)
 register_perop_features(_FEATURES)
 register_conv_block_feature(_FEATURES)
 register_requant_features(_FEATURES)
+_FEATURES.register(_im2col_pack_feature())
+_FEATURES.register(_weight_panel_feature())
 _FEATURES.register(
     ImprFeature(
         name="approximate_transcendental_activation",
@@ -881,6 +883,20 @@ class BoundBackendV1:
 def bind(extension_features: tuple[ImprFeature, ...] = ()) -> BoundBackendV1:
     """Compose chip-specific named features without mutating the shared RVV provider."""
     return BoundBackendV1(extension_features)
+
+
+def im2col_pack_api():
+    """Return the RVV im2col panel packing implementation."""
+    from . import im2col_pack
+
+    return im2col_pack
+
+
+def weight_panel_api():
+    """Return the RVV weight panel packing and ABI implementation."""
+    from . import weight_panel
+
+    return weight_panel
 
 
 def render_schedule(knobs: dict) -> str:
