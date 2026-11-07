@@ -102,8 +102,10 @@ Hardware revisions (RTL commits) are pinned in Merlin's single registry,
 ## Checks
 
 ```sh
-python -m pytest tests        # with Merlin installed
+python -m pytest             # with Merlin installed; pyproject.toml selects tests/
+ruff check .                 # pyproject.toml configures local linting
 ```
 
+`provider.yaml` and the target contract remain the runtime metadata for Merlin.
 `provenance.json` records the content hash of the contract. Nothing here claims hardware execution or
 candidate certification.
