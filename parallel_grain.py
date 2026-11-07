@@ -133,19 +133,24 @@ def threshold_of(features) -> int | None:
     return int(names[0][len(FEATURE_PREFIX) :])
 
 
-def ensure_registered(threshold: int) -> str:
+def ensure_registered(threshold: int, registry=None) -> str:
     """Register (idempotently) the grain point for ``threshold`` and return its name.
 
     Registered from HERE and re-registered on demand from the name, because the lowering runs in a
     child process that re-imports the registry: a point registered only in the parent fails to
     resolve in the child.
     """
-    from .impr_features import ImprFeature, known, register
+    from merlin.llvmlower.feature_registry import ImprFeature
+
+    if registry is None:
+        from .backend import _FEATURES
+
+        registry = _FEATURES
 
     name = feature_name(threshold)
-    if name in known():
+    if name in registry.known():
         return name
-    register(
+    registry.register(
         ImprFeature(
             name=name,
             action_class="HEURISTIC",

@@ -308,3 +308,13 @@ def test_dynamic_v3_register_blocks_resolve_from_names_and_keep_frozen_schedules
     assert BACKEND.unclaimed_op_classes("accum_resident_v3p_x_x_4_8_16") == [
         "linalg.matmul"
     ]
+
+
+def test_multicore_feature_points_resolve_from_names():
+    assert BACKEND.ensure_parallel_grain(10000) == "parallel_grain_10000"
+    assert BACKEND.ensure_parallel_team(4096) == "parallel_team_cost_4096"
+    features = BACKEND.normalize_features(
+        {"parallel_grain_10000", "parallel_team_cost_4096", "coarsen_openmp_regions"}
+    )
+    assert BACKEND.parallel_grain_threshold(features) == 10000
+    assert BACKEND.parallel_team_work(features) == 4096

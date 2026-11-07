@@ -49,11 +49,16 @@ def require_report(stdout: str) -> None:
         )
 
 
-def ensure_registered() -> str:
-    from .impr_features import ImprFeature, known, register
+def ensure_registered(registry=None) -> str:
+    from merlin.llvmlower.feature_registry import ImprFeature
 
-    if FEATURE not in known():
-        register(
+    if registry is None:
+        from .backend import _FEATURES
+
+        registry = _FEATURES
+
+    if FEATURE not in registry.known():
+        registry.register(
             ImprFeature(
                 name=FEATURE,
                 action_class="HEURISTIC",
@@ -141,7 +146,7 @@ if _PARALLEL_COARSEN:
 
 def apply_for_test(mlir_text: str) -> tuple[str, dict]:
     """Run the exact post-OpenMP rewrite used by the lowering pipeline."""
-    from .toolchain import m2m_python
+    from merlin.llvmlower.toolchain import m2m_python
 
     work = Path(tempfile.mkdtemp(prefix="merlin_parallel_coarsen_"))
     src, script = work / "in.mlir", work / "run.py"

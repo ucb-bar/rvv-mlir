@@ -63,6 +63,11 @@ from .dynamic_accumulator import (
 )
 from .grid_features import register_grid_features
 from .other_vector_features import register_other_vector_features
+from .parallel_coarsen import ensure_registered as register_parallel_coarsen
+from .parallel_grain import FEATURE_PREFIX as PARALLEL_GRAIN_PREFIX
+from .parallel_grain import ensure_registered as register_parallel_grain
+from .parallel_team import FEATURE_PREFIX as PARALLEL_TEAM_PREFIX
+from .parallel_team import ensure_registered as register_parallel_team
 from .perop_blocks import ensure_registered as register_conv_block_feature
 from .perop_features import (
     ensure_perop_block as _ensure_perop_block,
@@ -100,6 +105,26 @@ def _legacy_feature(name: str) -> bool:
         return True
     if register_dynamic_accumulator_from_name(_FEATURES, name):
         return True
+    if name.startswith(PARALLEL_GRAIN_PREFIX):
+        try:
+            return (
+                register_parallel_grain(
+                    int(name[len(PARALLEL_GRAIN_PREFIX) :]), _FEATURES
+                )
+                == name
+            )
+        except ValueError:
+            return False
+    if name.startswith(PARALLEL_TEAM_PREFIX):
+        try:
+            return (
+                register_parallel_team(
+                    int(name[len(PARALLEL_TEAM_PREFIX) :]), _FEATURES
+                )
+                == name
+            )
+        except ValueError:
+            return False
     from .legacy_features import register_existing
 
     return register_existing(name, _FEATURES)
@@ -113,6 +138,7 @@ register_other_vector_features(_FEATURES)
 register_perop_features(_FEATURES)
 register_conv_block_feature(_FEATURES)
 register_requant_features(_FEATURES)
+register_parallel_coarsen(_FEATURES)
 _FEATURES.register(
     ImprFeature(
         name="approximate_transcendental_activation",
@@ -180,6 +206,26 @@ def vec_noncontraction_shape(features) -> tuple[int | None, int | None]:
     from .vector_features import vec_noncontraction_max_rank
 
     return vec_noncontraction_lanes(features), vec_noncontraction_max_rank(features)
+
+
+def ensure_parallel_grain(threshold: int) -> str:
+    return register_parallel_grain(threshold, _FEATURES)
+
+
+def ensure_parallel_team(work_per_thread: int) -> str:
+    return register_parallel_team(work_per_thread, _FEATURES)
+
+
+def parallel_grain_threshold(features) -> int | None:
+    from .parallel_grain import threshold_of
+
+    return threshold_of(features)
+
+
+def parallel_team_work(features) -> int | None:
+    from .parallel_team import work_of
+
+    return work_of(features)
 
 
 def perop_mr_sentinel(mr_cap: int) -> str:

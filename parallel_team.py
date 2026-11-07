@@ -64,12 +64,17 @@ def team_width(cost: int, work_per_thread: int, max_team: int) -> int:
     return width
 
 
-def ensure_registered(work_per_thread: int) -> str:
-    from .impr_features import ImprFeature, known, register
+def ensure_registered(work_per_thread: int, registry=None) -> str:
+    from merlin.llvmlower.feature_registry import ImprFeature
+
+    if registry is None:
+        from .backend import _FEATURES
+
+        registry = _FEATURES
 
     name = feature_name(work_per_thread)
-    if name not in known():
-        register(
+    if name not in registry.known():
+        registry.register(
             ImprFeature(
                 name=name,
                 action_class="HEURISTIC",
@@ -202,8 +207,9 @@ def apply_for_test(
     mlir_text: str, work_per_thread: int, max_team: int
 ) -> tuple[str, dict]:
     """Exercise the exact pre/post rewrite around upstream's OpenMP conversion."""
+    from merlin.llvmlower.toolchain import m2m_python
+
     from .parallel_grain import RUNNER_PRELUDE as grain_prelude
-    from .toolchain import m2m_python
 
     work = Path(tempfile.mkdtemp(prefix="merlin_parallel_team_"))
     src, script = work / "in.mlir", work / "run.py"
