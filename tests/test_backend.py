@@ -265,6 +265,7 @@ def test_other_vector_schedule_variants_keep_frozen_outputs():
 
 
 def test_perop_request_and_concrete_schedule_are_provider_owned():
+    assert BACKEND.perop_blocks_api().__name__ == "rvv_provider.perop_blocks"
     assert BACKEND.vec_noncontraction_shape(
         BACKEND.normalize_features({"vectorize_non_contraction_generics_l16_r5"})
     ) == (16, 5)

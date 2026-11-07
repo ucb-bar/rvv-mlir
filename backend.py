@@ -892,6 +892,13 @@ def im2col_pack_api():
     return im2col_pack
 
 
+def perop_blocks_api():
+    """Return the RVV per-operation block and tagging implementation."""
+    from . import perop_blocks
+
+    return perop_blocks
+
+
 def weight_panel_api():
     """Return the RVV weight panel packing and ABI implementation."""
     from . import weight_panel
