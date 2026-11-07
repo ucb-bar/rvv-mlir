@@ -34,6 +34,7 @@ from merlin.llvmlower.compiler_api import (
 )
 from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
 
+from .accumulator_grid import register_accumulator_grids
 from .active_features import (
     WHOLEMODEL_VF_NAME,
     fused_vfmacc_tiled_schedule,
@@ -67,6 +68,7 @@ def _legacy_feature(name: str) -> bool:
 _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
 register_vec_noncontraction(_FEATURES)
 register_grid_features(_FEATURES)
+register_accumulator_grids(_FEATURES)
 _FEATURES.register(
     ImprFeature(
         name="erase_self_copy",

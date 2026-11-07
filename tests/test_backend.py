@@ -205,3 +205,15 @@ def test_rvv_register_tile_packing_and_lmul_grid_keep_frozen_outputs():
         "-mllvm",
         "-riscv-v-register-bit-width-lmul=4",
     ]
+
+
+def test_accumulator_resident_v1_v2_grids_keep_frozen_outputs():
+    cases = {
+        "accumulator_resident_ntail": "8b89d5ba126269f011f3acb2cb4db148e2e93c8789d11856daada1b0373e04b0",
+        "accumulator_resident_v2": "654746f6dbbecdc5fc4f863a88573e295fcda3cf8249dbb35c1aa73c1faab881",
+        "accum_resident_v2_8_16_16": "9f43e294e6fcf644b18480fb0707f064f3a32168f6ed797ec8ebf727d7fd28b5",
+    }
+    for name, expected in cases.items():
+        features = BACKEND.normalize_features({name})
+        schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected
