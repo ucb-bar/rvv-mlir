@@ -166,3 +166,21 @@ def test_published_accumulator_resident_wholemodel_is_provider_owned():
     assert BACKEND.normalize_features({"fuse_quantize_round_convert"}) == frozenset(
         {"fuse_quantize_round_convert"}
     )
+
+
+def test_noncontraction_vector_arms_and_name_derived_points_keep_frozen_bytes():
+    cases = (
+        (
+            "vectorize_non_contraction_generics",
+            "ae2044e97143c4eccc8e6417d2666c8622dd3d6073fd7ad9ea6b1c3124fe972e",
+        ),
+        (
+            "vectorize_non_contraction_generics_l16_r5",
+            "2b9e77fd23a354fc55feac4be47c4bf8bd7c04a9faf9f0bca3094a571c5ad43f",
+        ),
+    )
+    for name, expected in cases:
+        features = BACKEND.normalize_features({name})
+        assert "erase_self_copy" in features
+        schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected

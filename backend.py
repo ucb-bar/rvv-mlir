@@ -42,16 +42,36 @@ from .active_features import (
     wholemodel_vf_pipeline,
     wholemodel_vf_schedule,
 )
+from .vector_features import (
+    ensure_vec_noncontraction,
+    vec_noncontraction_lanes,
+)
+from .vector_features import (
+    register_base as register_vec_noncontraction,
+)
+from .vector_features import (
+    register_from_name as register_vec_noncontraction_from_name,
+)
 
 
 def _legacy_feature(name: str) -> bool:
     """Migration bridge for experimental features not yet extracted to this provider."""
+    if register_vec_noncontraction_from_name(_FEATURES, name):
+        return True
     from .legacy_features import register_existing
 
     return register_existing(name, _FEATURES)
 
 
 _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
+register_vec_noncontraction(_FEATURES)
+_FEATURES.register(
+    ImprFeature(
+        name="erase_self_copy",
+        action_class="PASS",
+        description="Target-neutral self-copy erase in the shared post-bufferization runner.",
+    )
+)
 _FEATURES.register(
     ImprFeature(
         name="accumulator_resident_wholemodel",
@@ -389,15 +409,13 @@ def vec_pre_schedule(features: frozenset[str]) -> str | None:
     Returns None when the lever is off (then the pipeline string is byte-identical to the baseline),
     when the feature set splices no arms, or under ``MERLIN_VEC_AFTER_SPECIALIZE``.
     """
-    from .legacy_features import ensure_vec_noncontraction, vec_noncontraction_lanes
-
     if _vec_after_specialize():
         return None
     lanes = vec_noncontraction_lanes(features)
     if lanes is None:
         return None
     text = apply_schedule(
-        _VEC_PRE_SKELETON, frozenset({ensure_vec_noncontraction(lanes)})
+        _VEC_PRE_SKELETON, frozenset({ensure_vec_noncontraction(_FEATURES, lanes)})
     )
     if text == _VEC_PRE_SKELETON:
         # The arms did not splice. Fail closed rather than preload a library whose entry point does
