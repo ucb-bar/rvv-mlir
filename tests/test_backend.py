@@ -145,3 +145,24 @@ def test_published_fused_vfmacc_schedule_is_provider_owned():
     assert hashlib.sha256(schedule.encode()).hexdigest() == (
         "393312d4e20b63c4644d01bd1c5a2601b36ab9fd071766abbdf627761a6d9356"
     )
+
+
+def test_published_accumulator_resident_wholemodel_is_provider_owned():
+    features = BACKEND.normalize_features({"accumulator_resident_wholemodel"})
+    schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+    assert hashlib.sha256(schedule.encode()).hexdigest() == (
+        "ac776529966ab3ddae691639c9c228316630d2743b5fe721ae81e547ea8e2bbf"
+    )
+    passes = [
+        "canonicalize",
+        "one-shot-bufferize{bufferize-function-boundaries}",
+        "convert-vector-to-scf",
+    ]
+    actual = BACKEND.apply_pipeline(passes, features)
+    normalized = str(actual).replace(tempfile.gettempdir(), "/TMP")
+    assert hashlib.sha256(normalized.encode()).hexdigest() == (
+        "e1df4bc8342c9713f63aeef9b12a94955fe906c196c5547afdc8fa8ebc90633c"
+    )
+    assert BACKEND.normalize_features({"fuse_quantize_round_convert"}) == frozenset(
+        {"fuse_quantize_round_convert"}
+    )

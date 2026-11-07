@@ -37,6 +37,8 @@ from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
 from .active_features import (
     WHOLEMODEL_VF_NAME,
     fused_vfmacc_tiled_schedule,
+    wholemodel_pipeline,
+    wholemodel_schedule,
     wholemodel_vf_pipeline,
     wholemodel_vf_schedule,
 )
@@ -52,6 +54,16 @@ def _legacy_feature(name: str) -> bool:
 _FEATURES = FeatureRegistry(lazy_register=_legacy_feature)
 _FEATURES.register(
     ImprFeature(
+        name="accumulator_resident_wholemodel",
+        action_class="PASS",
+        description="Whole-model accumulator-resident RVV vector schedule and lowering.",
+        edit_pipeline=wholemodel_pipeline,
+        edit_schedule=lambda _text: wholemodel_schedule(),
+        schedule_replace=True,
+    )
+)
+_FEATURES.register(
+    ImprFeature(
         name=WHOLEMODEL_VF_NAME,
         action_class="PASS",
         description="Published whole-model-safe vfmacc.vf accumulator-resident schedule and lowering.",
@@ -65,6 +77,13 @@ _FEATURES.register(
         name="prepack_weight_layout",
         action_class="PASS",
         description="Weight-layout preparation selected before RVV pipeline construction.",
+    )
+)
+_FEATURES.register(
+    ImprFeature(
+        name="fuse_quantize_round_convert",
+        action_class="PASS",
+        description="Target-neutral exact quantization rewrite performed before target lowering.",
     )
 )
 _FEATURES.register(
