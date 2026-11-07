@@ -899,6 +899,78 @@ def perop_blocks_api():
     return perop_blocks
 
 
+def perop_features_api():
+    """Return RVV per-operation feature names and sentinel prefixes."""
+    from . import perop_features
+
+    return perop_features
+
+
+def microkernel_policy_api():
+    """Return RVV shape-aware microkernel policy and schedule rendering."""
+    from . import microkernel_policy
+
+    return microkernel_policy
+
+
+def blocking_cost_api():
+    """Return RVV register-block legality and cost policy."""
+    from . import blocking_cost
+
+    return blocking_cost
+
+
+def lmul_group_api():
+    """Return the RVV register-group derivation policy."""
+    from . import lmul_group
+
+    return lmul_group
+
+
+LMUL_GROUP_SENTINEL = "lmul_register_group"
+
+
+def lmul_group_feature(lmul: int) -> str:
+    """Name the exact supported register-group width, refusing unsupported widths."""
+    from .lmul_group import LMUL_LADDER, LmulDerivationError
+
+    if int(lmul) not in LMUL_LADDER:
+        raise LmulDerivationError(f"LMUL={lmul!r} is not one of {LMUL_LADDER}")
+    return f"lmul_group_m{int(lmul)}"
+
+
+def default_vec_rank_shape() -> tuple[int, int]:
+    """The published default lane count and maximum noncontraction rank."""
+    from .vector_features import VEC_NONCONTRACTION_LANES, VEC_NONCONTRACTION_MAX_RANK
+
+    return VEC_NONCONTRACTION_LANES, VEC_NONCONTRACTION_MAX_RANK
+
+
+def vec_rank_bounds() -> tuple[int, int]:
+    """The admitted rank interval for bounded noncontraction vectorization."""
+    from .vector_features import (
+        VEC_NONCONTRACTION_MAX_RANK,
+        VEC_NONCONTRACTION_MIN_RANK,
+    )
+
+    return VEC_NONCONTRACTION_MIN_RANK, VEC_NONCONTRACTION_MAX_RANK
+
+
+def tag_vector_generics(module, *, lanes: int, max_rank: int) -> dict[str, int]:
+    from .vector_tag import tag_vector_generics as tag
+
+    return tag(module, lanes=lanes, max_rank=max_rank)
+
+
+def vectorize_amax_reduction(module, *, lanes: int, max_rank: int) -> dict:
+    from .reduce_vec import apply
+    from .vector_features import VEC_NONCONTRACTION_MIN_RANK
+
+    return apply(
+        module, lanes=lanes, min_rank=VEC_NONCONTRACTION_MIN_RANK, max_rank=max_rank
+    )
+
+
 def weight_panel_api():
     """Return the RVV weight panel packing and ABI implementation."""
     from . import weight_panel

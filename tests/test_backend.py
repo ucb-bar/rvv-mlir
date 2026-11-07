@@ -359,6 +359,11 @@ def test_rvv_schedule_renderer_and_shape_policy_live_in_provider():
     from merlin.kernels.microkernel import ContractionShape, MicrokernelSpec
     from rvv_provider.microkernel_policy import _rvv_microkernel_shape_policy
 
+    assert (
+        BACKEND.microkernel_policy_api().__name__ == "rvv_provider.microkernel_policy"
+    )
+    assert BACKEND.blocking_cost_api().__name__ == "rvv_provider.blocking_cost"
+
     knobs = {
         "op_match": [{"op": "linalg.matmul", "tile": [4, 8, 1], "vector": [4, 8, 1]}],
         "lowering_patterns": ["lower_contraction", "lower_shape_cast"],
@@ -425,3 +430,42 @@ def test_provider_weight_panel_pack_preserves_exact_values():
     np.testing.assert_array_equal(packed.transpose(1, 0, 2).reshape(3, 8), weight)
     with pytest.raises(panel.PanelPackRefused, match="layout chain yields"):
         panel.pack_bytes(weight[:, :4], arg)
+
+
+def test_provider_vector_preparation_policy_and_tagging():
+    from types import SimpleNamespace
+
+    assert BACKEND.default_vec_rank_shape() == (8, 4)
+    assert BACKEND.vec_rank_bounds() == (2, 4)
+    assert BACKEND.perop_features_api().PEROP_BLOCK_NAME == "perop_register_block"
+    assert BACKEND.LMUL_GROUP_SENTINEL == "lmul_register_group"
+    assert BACKEND.lmul_group_feature(4) == "lmul_group_m4"
+    with pytest.raises(BACKEND.lmul_group_api().LmulDerivationError):
+        BACKEND.lmul_group_feature(3)
+
+    def generic(shape):
+        result = SimpleNamespace(type=SimpleNamespace(get_shape=lambda: shape))
+        return SimpleNamespace(
+            name="linalg.generic",
+            properties={
+                "iterator_types": "iterator_type parallel iterator_type parallel"
+            },
+            regions=[],
+            results=[result],
+            attributes={},
+        )
+
+    eligible, tail = generic((2, 16)), generic((2, 7))
+    module = SimpleNamespace(walk=lambda: iter((eligible, tail)))
+    report = BACKEND.tag_vector_generics(module, lanes=8, max_rank=4)
+    assert report["tagged"] == 1
+    assert report["skip_extent"] == 1
+    assert "merlin.vec_r2" in eligible.attributes
+    assert not tail.attributes
+    from rvv_provider import reduce_vec
+
+    assert reduce_vec.sign_mask(16) == 0x7FFF
+    assert reduce_vec.sign_mask(32) == 0x7FFF_FFFF
+    assert BACKEND.vectorize_amax_reduction(
+        SimpleNamespace(walk=lambda: iter(())), lanes=8, max_rank=4
+    ) == {"absf_rewrites": 0, "tagged": 0}
