@@ -279,3 +279,20 @@ def test_perop_request_and_concrete_schedule_are_provider_owned():
     assert BACKEND.normalize_features({"conv_register_block"}) == frozenset(
         {"conv_register_block"}
     )
+
+
+def test_dynamic_v3_register_blocks_resolve_from_names_and_keep_frozen_schedules():
+    cases = {
+        "accum_resident_v3_3_16_16": "f60ff4b7c4600c39955b95926eaee3f93eaf24530addeaab79405e43f16352bb",
+        "accum_resident_v3kb_4_16_32": "ec25e2616a9b4fd2eff05a464e8674f28c2f68a0f4641847d70d19180419734e",
+        "accum_resident_v3u_7_16_16": "21bc0b6d7ebb215dbd70f4281f81cd001d5f244e3ede5d76bd0b44f0caacc08d",
+        "accum_resident_v3vl_4_16_16": "a8e75ae043c8d47f873bbd477c2a58601770335e889cccfc788fd773ee131251",
+        "accum_resident_v3p_x_x_4_8_16": "d85a384b432fc14544172d83c2eb6a476abac94c64ff39b41ae59732d4b14af6",
+    }
+    for name, expected in cases.items():
+        features = BACKEND.normalize_features({name})
+        schedule = BACKEND.apply_schedule(BACKEND.baseline_schedule_text(), features)
+        assert hashlib.sha256(schedule.encode()).hexdigest() == expected
+    assert BACKEND.unclaimed_op_classes("accum_resident_v3p_x_x_4_8_16") == [
+        "linalg.matmul"
+    ]

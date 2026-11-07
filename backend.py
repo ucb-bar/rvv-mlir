@@ -43,6 +43,24 @@ from .active_features import (
     wholemodel_vf_pipeline,
     wholemodel_vf_schedule,
 )
+from .dynamic_accumulator import (
+    ensure_v3_kblocked_microkernel as _ensure_v3_kblocked_microkernel,
+)
+from .dynamic_accumulator import (
+    ensure_v3_microkernel as _ensure_v3_microkernel,
+)
+from .dynamic_accumulator import (
+    ensure_v3_perop_microkernel as _ensure_v3_perop_microkernel,
+)
+from .dynamic_accumulator import (
+    ensure_v3_scalable_microkernel as _ensure_v3_scalable_microkernel,
+)
+from .dynamic_accumulator import (
+    ensure_v3_unrolled_microkernel as _ensure_v3_unrolled_microkernel,
+)
+from .dynamic_accumulator import (
+    register_from_name as register_dynamic_accumulator_from_name,
+)
 from .grid_features import register_grid_features
 from .other_vector_features import register_other_vector_features
 from .perop_blocks import ensure_registered as register_conv_block_feature
@@ -78,6 +96,8 @@ def _legacy_feature(name: str) -> bool:
     if register_vec_noncontraction_from_name(_FEATURES, name):
         return True
     if register_perop_from_name(_FEATURES, name):
+        return True
+    if register_dynamic_accumulator_from_name(_FEATURES, name):
         return True
     from .legacy_features import register_existing
 
@@ -182,6 +202,38 @@ def parse_perop_nr_sentinel(name: str) -> int | None:
 
 def ensure_perop_block(table, kc: int, pairs=(), vec_epilogue: bool = False) -> str:
     return _ensure_perop_block(_FEATURES, table, kc, pairs, vec_epilogue)
+
+
+def ensure_v3_microkernel(mr: int, nr: int, kc: int) -> str:
+    return _ensure_v3_microkernel(_FEATURES, mr, nr, kc)
+
+
+def ensure_v3_kblocked_microkernel(mr: int, nr: int, kc: int) -> str:
+    return _ensure_v3_kblocked_microkernel(_FEATURES, mr, nr, kc)
+
+
+def ensure_v3_unrolled_microkernel(mr: int, nr: int, kc: int) -> str:
+    return _ensure_v3_unrolled_microkernel(_FEATURES, mr, nr, kc)
+
+
+def ensure_v3_scalable_microkernel(mr: int, nr: int, kc: int) -> str:
+    return _ensure_v3_scalable_microkernel(_FEATURES, mr, nr, kc)
+
+
+def ensure_v3_perop_microkernel(
+    mr_mm: int | None,
+    nr_mm: int | None,
+    mr_bmm: int | None,
+    nr_bmm: int | None,
+    kc: int,
+) -> str:
+    return _ensure_v3_perop_microkernel(_FEATURES, mr_mm, nr_mm, mr_bmm, nr_bmm, kc)
+
+
+def unclaimed_op_classes(feature: str) -> list[str]:
+    from .dynamic_accumulator import unclaimed_op_classes as unclaimed
+
+    return unclaimed(feature)
 
 
 def accum_microkernel_marker() -> str:
