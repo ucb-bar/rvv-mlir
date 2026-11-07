@@ -62,6 +62,14 @@ from merlin.llvmlower.int_softmax_table import (
 from merlin.llvmlower.named_broadcast_fold import (
     RUNNER_PRELUDE as _NAMED_BROADCAST_FOLD_PRELUDE,
 )
+from merlin.llvmlower.parallel_coarsen import (
+    RUNNER_PRELUDE as _PARALLEL_COARSEN_PRELUDE,
+)
+from merlin.llvmlower.parallel_coarsen import STAGE_SRC as _PARALLEL_COARSEN_STAGE_SRC
+from merlin.llvmlower.parallel_grain import LATE_STAGE_SRC as _PARALLEL_GRAIN_LATE_SRC
+from merlin.llvmlower.parallel_grain import RUNNER_PRELUDE as _PARALLEL_GRAIN_PRELUDE
+from merlin.llvmlower.parallel_team import RUNNER_PRELUDE as _PARALLEL_TEAM_PRELUDE
+from merlin.llvmlower.parallel_team import STAGE_SRC as _PARALLEL_TEAM_STAGE_SRC
 from merlin.llvmlower.roundeven_intrinsic import (
     RUNNER_PRELUDE as _ROUND_INTRINSIC_PRELUDE,
 )
@@ -77,14 +85,6 @@ from merlin.llvmlower.transpose_maps import RUNNER_PRELUDE as _TRANSPOSE_MAPS_PR
 from .bmm_tail_pad import RUNNER_PRELUDE as _BMM_TAIL_PAD_PRELUDE
 from .panel_parallel import MID_STAGE_SRC as _PANEL_PARALLEL_MID_SRC
 from .panel_parallel import RUNNER_PRELUDE as _PANEL_PARALLEL_PRELUDE
-from .parallel_coarsen import (
-    RUNNER_PRELUDE as _PARALLEL_COARSEN_PRELUDE,
-)
-from .parallel_coarsen import STAGE_SRC as _PARALLEL_COARSEN_STAGE_SRC
-from .parallel_grain import LATE_STAGE_SRC as _PARALLEL_GRAIN_LATE_SRC
-from .parallel_grain import RUNNER_PRELUDE as _PARALLEL_GRAIN_PRELUDE
-from .parallel_team import RUNNER_PRELUDE as _PARALLEL_TEAM_PRELUDE
-from .parallel_team import STAGE_SRC as _PARALLEL_TEAM_STAGE_SRC
 
 # Sentinel pass name spliced into the pipeline string by the feature's edit_pipeline to mark where
 # the A-scalarization rewrite runs (after contract->vector.fma lowering, before one-shot-bufferize).
