@@ -61,6 +61,7 @@ def test_active_schedules_are_byte_identical_to_the_published_payloads():
     )
     assert prepack.read_bytes() == champion.read_bytes()
     assert BACKEND.schedule_path().name == BACKEND.DEFAULT_SCHEDULE
+    assert BACKEND.baseline_schedule_text() == champion.read_text(encoding="utf-8")
 
 
 def test_multicore_schedule_variants_preserve_frozen_bytes():

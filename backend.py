@@ -38,6 +38,11 @@ def schedule_path(name: str = DEFAULT_SCHEDULE) -> Path:
     return root
 
 
+def baseline_schedule_text() -> str:
+    """Return the frozen, package-owned schedule used when a caller supplies none."""
+    return (schedule_path() / "schedule.mlir").read_text(encoding="utf-8")
+
+
 def _fuse_post() -> bool:
     return bool(os.environ.get("MERLIN_FUSE_POST"))
 
