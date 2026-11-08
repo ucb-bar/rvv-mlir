@@ -930,6 +930,13 @@ def im2col_pack_api():
     return im2col_pack
 
 
+def im2col_stream_api():
+    """Return the explicit-budget, default-off producer/consumer panel API."""
+    from .packing import im2col_stream
+
+    return im2col_stream
+
+
 def perop_blocks_api():
     """Return the RVV per-operation block and tagging implementation."""
     from .transforms import perop_blocks

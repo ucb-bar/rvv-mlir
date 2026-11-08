@@ -111,3 +111,80 @@ consume a `backend.toml`; the schedule and flags are selected by the versioned `
 API rather than a second configuration file.
 `provenance.json` records the content hash of the contract. Nothing here claims hardware execution or
 candidate certification.
+
+## Opt-in streaming im2col preparation API
+
+The default pipeline is unchanged. The provider now exposes
+`backend.im2col_stream_api()` for callers that explicitly select bounded,
+sequential producer/consumer panels. This is a preparation API; the standard
+`merlin-compile` CLI does not automatically select it.
+
+```python
+api = backend.im2col_stream_api()
+target = api.PanelTarget(
+    vlen_bits=target_vlen, elen_bits=target_elen,
+    operand_bits=8, accumulator_bits=32, operand_lmul=1,
+    workspace_bytes=activation_panel_budget,
+    # cache_budget_bytes=explicit_panel_cache_budget,  # optional, never inferred
+)
+prepared, report = api.rewrite_prepared_file(
+    original_prepared_ir, target, private_build_directory, enabled=True
+)
+if report.streamed:
+    schedule.write_text(api.lowering_schedule(report))
+    pipeline = api.lowering_pipeline(schedule)
+    # Normal upstream compiler lowering:
+    # mlir-opt prepared --pass-pipeline="builtin.module(<pipeline>)" -o lowered.mlir
+    # mlir-translate --mlir-to-llvmir lowered.mlir -o model.ll
+    # clang -target riscv64 -march=rv64gcv_zvl<TARGET_VLEN>b ... -c model.ll
+```
+
+The built-in adapter recognizes a static NCHW copy-gather followed by the
+canonical `weight[F,K] × activation[K,M] -> output[F,M]` contraction. It
+admits only signed i8 operands, i32 modular accumulation, an explicit zero
+fill, the closed extend/multiply/add body, and default overflow flags.
+Shared gathers, unsupported layouts/bodies/types, unknown dimensions,
+insufficient workspace and windows outside the input are refused with named
+reasons. Padding must already be explicit; the pass does not invent or move
+padding or quantization.
+
+Each SCF iteration gathers a local receptive field, contracts it and inserts
+only its output slice. Full panels and row tails have separate static shapes.
+Their workspaces are outside their loops and fully overwritten. The summed
+activation payload is bounded by the requested budget; output storage,
+allocator alignment overhead and vector lowering scratch are separate
+requirements. The output accumulator and each element's increasing-K
+reduction order are preserved. Panel loops are sequential; this API does not
+authorize sharing scratch across concurrent iterations.
+
+VLEN controls architectural register capacity. Operand SEW, accumulator SEW,
+ELEN, LMUL and the register budget are separate inputs. Spatial panel width is
+limited by explicit workspace/cache budgets and K, independently of register
+block NR; it is not set equal to VLEN. DLEN and physical utilization are not
+inferred. The geometry is an admissible starting point, not a measured tuning
+winner.
+
+Extension providers can use `WindowSpec` and
+`build_stream(input, accumulator, spec, T, consumer, panel_layout="mk",
+output_axis=0)`. The callback receives a panel, existing accumulator slice
+and static width and returns operations plus the resulting slice.
+`WindowSpec(input_layout="NHWC", reduction_order=("kh","kw","c"), ...)`
+preserves the NHWC flattened reduction order; the default is NCHW with
+`("c","kh","kw")`. The extension owns arithmetic, call alias contracts and
+admission. The built-in RVV matching adapter currently supports NCHW only.
+
+Run the bounded functional/toolchain proof explicitly:
+
+```sh
+PYTHONPATH=/path/to/merlin/src python tests/prove_im2col_stream.py \
+  --llvm-bin /path/to/llvm/bin --linker /path/to/riscv64-unknown-elf-ld \
+  --spike /path/to/spike --output /new/proof-directory
+```
+
+The current proof covers strides, dilation, batch/row tails and both selected
+LMUL budgets at architectural VLEN 128/256/512/1024, with full-output and guard
+checks on host and RVV Spike execution. It checks actual guest `vlenb`,
+emitted vector arithmetic and allocation placement. It establishes no speedup
+for this pass, no physical lane utilization, and no timing accuracy. FPGA
+panel-locality observations that motivated the optimization are separate
+experiments; performance at other VLEN values has not been measured.
