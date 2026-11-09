@@ -25,6 +25,17 @@ no allocator or repacking/copy, destination-passing ABI, machine register/spill
 audit, and complete output/input/guard validation. Source authorship is not a
 substitute for those compiler-output checks.
 
+The adapter requests the existing `erase_self_copy` compiler feature alongside
+its accumulator feature, including for scalar tails. This cleanup folds identical
+borrowed descriptors and erases proven self-copies after bufferization. It does
+not admit other copies or allocations. The portable proof conservatively refuses
+memory helper symbols, LLVM memcpy/memmove/memset intrinsics, stack allocation,
+and unknown or indirect calls before reporting compute-only admission. This gate
+also refuses unused declarations; it makes no execution-reachability claim.
+It admits the plain-symbol grammar produced by this corpus, and refuses inline
+assembly and quoted or escaped LLVM symbols. Comments and string contents cannot
+create callee targets or definitions. It is not a parser for arbitrary LLVM IR.
+
 Exact power-of-two register blocks are bounded by declared architectural VLEN
 and widening source SEW16. Physical DLEN is neither an input nor inferred from
 VLEN. The caller must check actual `vlenb` and observe the resulting VL/SEW/LMUL

@@ -104,7 +104,11 @@ class Emission:
         """Arguments for the existing target-neutral native lowering entry."""
         return {
             "vectorize": self.vectorize,
-            "features": frozenset({self.feature}) if self.feature else frozenset(),
+            # Bufferized one-row tensor slices can retain identity copies and
+            # loop-carried ownership flags. Use the existing checked self-copy
+            # cleanup; returned LLVM still requires the separate closure gate.
+            "features": frozenset({"erase_self_copy"})
+            | (frozenset({self.feature}) if self.feature else frozenset()),
             "transform_schedule": (
                 (ROOT / "schedules/hand_v0_int8/schedule.mlir").read_text()
                 if self.vectorize
@@ -121,6 +125,7 @@ class Emission:
             "spec": asdict(self.spec),
             "block": {"m": self.mr, "n": self.nr, "k": self.kc},
             "feature": self.feature,
+            "requested_compiler_cleanup": "erase_self_copy",
             "source_scalar_1x1": not self.vectorize,
             "vector_MAC_instructions_guaranteed": False,
             "numeric_contract": "C += signedI8(A)*signedI8(B), modulo2^32",

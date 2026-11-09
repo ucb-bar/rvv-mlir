@@ -66,7 +66,7 @@ def test_single_cell_requires_explicit_compiler_scalar_admission():
     assert leaf.feature is None
     assert leaf.lowering_kwargs() == {
         "vectorize": False,
-        "features": frozenset(),
+        "features": frozenset({"erase_self_copy"}),
         "transform_schedule": None,
         "static_arena": False,
     }
@@ -125,3 +125,10 @@ def test_explicit_n_lane_limit_can_only_reduce_the_architectural_budget():
 def test_default_four_by_sixteen_feature_retains_existing_name():
     leaf = API.emit("leaf", spec(m=4, k=16, a_k_stride=4))
     assert leaf.feature == "accumulator_resident_microkernel_v3"
+
+
+def test_existing_self_copy_cleanup_is_requested_for_every_leaf():
+    for dimensions in ({}, {"m": 1}, {"m": 1, "n": 1}):
+        leaf = API.emit("leaf", spec(**dimensions), allow_scalar_1x1=True)
+        assert "erase_self_copy" in leaf.lowering_kwargs()["features"]
+        assert leaf.record()["requested_compiler_cleanup"] == "erase_self_copy"

@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from borrowed_i8_proof_audit import audit as audit_compute_only_llvm
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -257,17 +258,14 @@ def main():
                         )
                         ll = Path(lowered.ll_path)
                         text = ll.read_text()
-                        for forbidden in (
-                            "@malloc",
-                            "@memrefCopy",
-                            "@memcpy",
-                            "@memmove",
-                            " alloca ",
-                        ):
-                            if forbidden in text:
-                                raise RuntimeError(
-                                    "borrowed output allocated/copied: " + forbidden
-                                )
+                        closure = audit_compute_only_llvm(text)
+                        (work / "compute-only-LLVM-audit.json").write_text(
+                            json.dumps(closure, indent=2) + "\n"
+                        )
+                        if not closure["pass"]:
+                            raise RuntimeError(
+                                "compute-only LLVM closure refused; see its audit"
+                            )
                         flags = [
                             "--target=riscv64-unknown-elf",
                             f"-march=rv64gcv_zvl{vlen}b",
@@ -438,6 +436,7 @@ def main():
             ROOT / "src/rvv/packing/borrowed_i8_leaf.py",
             ROOT / "src/rvv/backend.py",
             ROOT / "tests/prove_im2col_stream.py",
+            ROOT / "tests/borrowed_i8_proof_audit.py",
         )
     }
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
