@@ -256,3 +256,11 @@ driver, runtime, VME controls and independent goldens unchanged. The first
 functional comparison reduces RVV instruction work substantially; the release
 receipts distinguish instruction counts from hardware cycles. No automatic
 CLI routing, whole-model coverage or FPGA speedup is claimed.
+
+## Opt-in exact-order BF16 linear leaf
+
+`backend.exact_bf16_linear_api()` emits an explicitly selected ordinary MLIR
+leaf for static BF16 linear operations, preserving ascending-K F32 multiply/add
+order and BF16 RNE output. It keeps original W[N,K] weights and uses a portable
+C admission wrapper. See [the API and proof documentation](docs/exact_bf16_linear.md)
+for target geometry, compiler selection, ABI requirements and validation limits.
