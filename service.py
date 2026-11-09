@@ -91,7 +91,7 @@ def validate(request) -> None:
 def compile(request):
     from merlin.compiler.artifact import Artifact, Compilation
     from merlin.compiler.lower.llvm.passes import finalize_pipeline
-    from merlin.llvmlower.pipeline import lower_to_llvm_ir
+    from merlin.compiler.lower.native.pipeline import lower_to_llvm_ir
 
     from .src.rvv import backend
 
