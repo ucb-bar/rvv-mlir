@@ -172,7 +172,7 @@ def _recipe(spec) -> list[str]:
             ensure_v3_unrolled_microkernel(int(spec.MR), int(spec.NR), int(spec.KC))
         ]
     if spec.pack:
-        from merlin.llvmlower.feature_registry import ImprFeature
+        from merlin.compiler.selection.features import ImprFeature
 
         from ..backend import _FEATURES
         from ..features.grid_features import vfmacc_packed_schedule

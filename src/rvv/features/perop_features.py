@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
-from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
+from merlin.compiler.selection.features import FeatureRegistry, ImprFeature
 
 from ..transforms.active_features import _accumulator_resident_v3_pipeline
 from ..transforms.perop_blocks import distinct_blocks, schedule_text

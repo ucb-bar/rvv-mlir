@@ -367,7 +367,7 @@ def fused_arms(pairs, vectorize_epilogue: bool = False) -> str:
 
 
 def _feature(name: str = FEATURE):
-    from merlin.llvmlower.feature_registry import ImprFeature
+    from merlin.compiler.selection.features import ImprFeature
 
     return ImprFeature(
         name=name,
@@ -415,7 +415,7 @@ def ensure_registered(registry=None) -> str:
     """Register both points if they are not already. Idempotent, so importing from several entry
     points is safe. Returns the plain (traversal-removal-only) feature name."""
     if registry is None:
-        from ..backend import _FEATURES
+        from ..features.registry import _FEATURES
 
         registry = _FEATURES
     for nm in (FEATURE, VEC_FEATURE):

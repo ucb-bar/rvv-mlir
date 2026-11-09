@@ -205,7 +205,7 @@ def rewrite_absf(module, report_out: dict | None = None) -> int:
     Refusals are counted BY REASON into ``report_out``: a pass that rewrote nothing and a pass that
     could not reach anything both return 0, and only the counters separate them.
     """
-    from merlin.llvmlower.passes_xdsl import carry_provenance
+    from merlin.compiler.ir.provenance import carry_provenance
     from xdsl.dialects import arith
     from xdsl.dialects.builtin import IntegerAttr, IntegerType
 

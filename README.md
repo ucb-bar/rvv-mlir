@@ -23,6 +23,18 @@ notices when this base moves.
 
 ## Compiler layout
 
+The active refactor uses Merlin's public `compiler.passes.contract` for pass-list
+composition and scheduling join keys, and `compiler.lower.llvm.passes` for LLVM
+finalization. Package shape adaptation uses `compiler.backend.host`; packing ABI
+checks read the shared IR query interface without importing the host model runner.
+Named feature records and the shared catalog use `compiler.selection.features`
+and `compiler.selection.shared`; the provider retains its own feature selection.
+The existing `backend.py` plugin entrypoint and schedule payloads remain compatible.
+The RVV builder selects its published deallocation profile explicitly: fresh
+deallocation splitting, unused-output slicing, and loop-return allocation changes
+remain disabled. Merlin's scalar defaults can evolve independently; existing RVV
+pipeline hash checks protect this provider's original ordering.
+
 - `src/rvv/backend.py` builds the RVV pass pipeline and exposes schedule and preparation APIs.
   Root `backend.py` forwards the pinned plugin entrypoint to that package.
 - `src/rvv/features/` registers named tuning choices; `src/rvv/transforms/` contains
@@ -58,6 +70,44 @@ Chip delivery packages and board receipts, including Kodiak's prepack W8A8 image
 corresponding chip repository. The reusable `prepack_weight_layout` feature remains here.
 
 ## Using it
+
+Schedule rendering and blocking/microkernel policies have one active owner in
+`src/rvv/policy/`. Merlin's historical `mining.from_strategy` APIs delegate here;
+they no longer carry another implementation or register a resolver on import.
+The installed service exposes `codegen_provider()` for explicit policy selection.
+`policy_source_files()` identifies actual policy/feature/service/contract files
+for generated-source attribution; it does not claim a complete native dependency
+closure or hardware qualification. Generic registry callers can deliberately
+invoke `register_microkernel_resolver()`; provider-local calls preserve ambient
+custom resolvers.
+
+The repository also builds an installable `rvv-mlir` wheel. Its `merlin.backends`
+entrypoint is `rvv`. The first public service accepts **already preprocessed
+upstream MLIR** and emits LLVM IR, a copied schedule, the selected pass pipeline,
+and native lowering records. It does not capture/quantize a model or build a
+platform image. An unavailable selected native compiler is an error before output
+creation; importing the installed provider does not require that compiler.
+
+```python
+from merlin import api
+
+result = api.compile(
+    api.Source(prepared_mlir, kind="upstream-mlir"),
+    backend="rvv",
+    output="out/rvv-region",
+    options=api.CompileOptions(parameters={
+        "rvv.data-layout": selected_llvm_data_layout,
+        "rvv.index-bits": selected_index_width,
+    }),
+)
+```
+
+Select the native torch-mlir environment through Merlin's existing
+`MERLIN_COMPILER_PYTHON`/`MERLIN_COMPILER_VENV` configuration. Optional service
+parameters are `rvv.schedule` (a shipped schedule name) and `rvv.timeout` (seconds).
+System, platform, hart scheduling and arbitrary feature options are rejected at
+this boundary until their complete image/preparation adapters are available.
+The existing model commands below remain available through their original route.
 
 ```sh
 git clone https://github.com/ucb-bar/merlin.git && cd merlin

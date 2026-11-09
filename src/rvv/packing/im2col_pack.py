@@ -885,7 +885,7 @@ def rewrite_prepared_file(
 
 def _feature():
     """The default-off panel-packing request owned by this RVV provider."""
-    from merlin.llvmlower.feature_registry import ImprFeature
+    from merlin.compiler.selection.features import ImprFeature
 
     # NO `implies={PEROP_BLOCK_NAME}`, deliberately, even though this lever REQUIRES per-op blocking.
     # `perop_register_block` is a sentinel the preparation step CONSUMES and replaces with a concrete

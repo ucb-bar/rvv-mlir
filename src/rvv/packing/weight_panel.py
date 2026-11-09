@@ -1410,10 +1410,10 @@ def assert_abi_agrees(bundle_dir: str | Path, prepared: str | Path) -> int:
     computes nonsense -- silently, because nothing downstream compares them. Handing one directory to
     both consumers (what the transpose hoist does) does not check this; it only makes it likely.
     """
-    from merlin.llvmlower.model_runner import parse_forward_signature
+    from merlin.common.mlir_query import forward_signature
 
-    a = parse_forward_signature(Path(bundle_dir) / "model.mlir")
-    b = parse_forward_signature(Path(prepared))
+    a, _ = forward_signature(Path(bundle_dir) / "model.mlir")
+    b, _ = forward_signature(Path(prepared))
     if len(a) != len(b):
         raise PanelPackRefused(
             f"ABI skew: the bundle declares {len(a)} @forward arguments, the prepared module {len(b)}"
@@ -1545,7 +1545,7 @@ def line_touch_model(args: list[PackedArg], *, line_bytes: int) -> dict[str, Any
 
 
 def _feature():
-    from merlin.llvmlower.feature_registry import ImprFeature
+    from merlin.compiler.selection.features import ImprFeature
 
     return ImprFeature(
         name=FEATURE,

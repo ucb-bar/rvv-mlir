@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
+from merlin.compiler.selection.features import FeatureRegistry, ImprFeature
 
 _SELF_COPY_FEATURE = "erase_self_copy"
 

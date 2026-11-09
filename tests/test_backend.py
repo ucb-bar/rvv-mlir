@@ -9,7 +9,7 @@ import types
 from pathlib import Path
 
 import pytest
-from merlin.llvmlower.feature_registry import ImprFeature
+from merlin.compiler.selection.features import ImprFeature
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = types.ModuleType("rvv_provider")
@@ -99,6 +99,13 @@ def test_active_schedules_are_byte_identical_to_the_published_payloads():
 
 
 def test_multicore_schedule_variants_preserve_frozen_bytes():
+    from merlin.compiler.passes import contract, parallel
+
+    assert BACKEND.parallel_transform_schedule is parallel.parallel_transform_schedule
+    observed = {str(path) for path in BACKEND.policy_source_files()}
+    assert parallel.__file__ in observed and contract.__file__ in observed
+    for function in (BACKEND.normalize_features, BACKEND.build_pipeline):
+        assert sys.modules[function.__module__].__file__ in observed
     cases = (
         ({}, "43f9187c5d1d00ccdafc741116a266a3aad96cd61d247611697130f76a02420b"),
         (
@@ -234,14 +241,37 @@ def test_accumulator_resident_v3_padding_variants_keep_frozen_outputs():
 
 
 def test_accumulator_microkernel_runner_source_is_provider_owned():
+    from merlin.llvmlower.runner_shared import DEALLOC_CHECK_PRELUDE, DEALLOC_CHECK_RUNNER
+
     assert BACKEND.accum_microkernel_marker() == "__merlin_scalarize_a__"
+    # Pin the provider's composition separately from the SDK's live lifetime
+    # verifier. The archived full hashes stay at the original repository revision;
+    # importing them here would discard newer borrowed/fresh-allocation checks.
     cases = {
-        False: "d845c343b5ccb5713d523e9a275af1b5d15e8ea972ec40471fdff0534efb8f20",
-        True: "c185f6dc1f5f468e7e5aba6f69eecf25ad6f099b27c6f0cc27b07985222c0be5",
+        False: "5397adb5c3760aa8625dc67218b269f88e200078cdfd2700f9da780835e7fdf7",
+        True: "cafbccb14292bbb2cacd611d9776ee3c5b9ebe0becc37f67ff87393e95a16f9e",
     }
     for tag_bmm_tails, expected in cases.items():
         source = BACKEND.accum_microkernel_runner_source(tag_bmm_tails=tag_bmm_tails)
+        compile(source, "<rvv-runner>", "exec")
+        for fragment in (DEALLOC_CHECK_PRELUDE, DEALLOC_CHECK_RUNNER):
+            assert source.count(fragment) == 1
+            source = source.replace(fragment, "", 1)
         assert hashlib.sha256(source.encode()).hexdigest() == expected
+
+    # A reported lifetime violation must record its observation, then stop before
+    # any downstream lowering stage. Check the actual selected wrapper fragment.
+    calls = []
+    namespace = {
+        "_run_stages": lambda *args: calls.append(("run", args[2])),
+        "_dealloc_placement_violations": lambda module: (["fresh ownership violation"], 1, 1),
+        "_obl_write_observation": lambda module, bad: calls.append(("observe", tuple(bad))),
+    }
+    exec(DEALLOC_CHECK_RUNNER, namespace)
+    with pytest.raises(RuntimeError, match="post-deallocation lifetime verification failed"):
+        namespace["_run_stages"](None, object(), "canonicalize,optimize-allocation-liveness,convert-func-to-llvm", 0)
+    assert calls == [("run", "canonicalize,optimize-allocation-liveness"),
+                     ("observe", ("fresh ownership violation",))]
 
 
 def test_other_vector_schedule_variants_keep_frozen_outputs():
@@ -326,7 +356,7 @@ def test_multicore_feature_points_resolve_from_names():
     assert BACKEND.parallel_team_work(features) == 4096
 
 
-def test_chip_features_bind_per_target_without_mutating_rvv_registry():
+def test_chip_features_bind_per_target_without_mutating_rvv_registry(monkeypatch):
     extension = ImprFeature(
         name="test_chip_marker",
         action_class="PASS",
@@ -351,6 +381,26 @@ def test_chip_features_bind_per_target_without_mutating_rvv_registry():
     assert bound.reduction_schedule_api().__name__ == (
         "rvv_provider.src.rvv.features.other_vector_features"
     )
+    # Original provider hooks remain the call boundary for chip-bound instances.
+    owner = sys.modules[BACKEND.BoundBackendV1.__module__]
+    registry_owner = sys.modules[BACKEND.normalize_features.__module__]
+    pipeline_owner = sys.modules[BACKEND.build_pipeline.__module__]
+    assert owner._FEATURES is registry_owner._FEATURES is pipeline_owner._FEATURES
+    assert owner.normalize_features is registry_owner.normalize_features
+    assert owner.build_pipeline is pipeline_owner.build_pipeline
+    assert bound.registry is not registry_owner._FEATURES
+    calls = []
+    def pipeline_hook(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "selected-test-pipeline"
+    def vector_hook(features, **kwargs):
+        calls.append((features, kwargs))
+        return "selected-test-vector-entry"
+    monkeypatch.setattr(owner, "build_pipeline", pipeline_hook)
+    monkeypatch.setattr(owner, "vec_pre_schedule", vector_hook)
+    assert bound.build_pipeline("schedule.mlir") == "selected-test-pipeline"
+    assert bound.vec_pre_schedule(frozenset()) == "selected-test-vector-entry"
+    assert all(row[1]["_registry"] is bound.registry for row in calls)
 
 
 def test_rvv_register_block_legality_stays_with_provider():
@@ -404,15 +454,23 @@ def test_all_95_existing_levers_resolve_without_legacy_vector_registry():
     script = """
 import importlib.util, json, sys, types
 from pathlib import Path
-from merlin.llvmlower.feature_registry import ImprFeature
+from merlin.compiler.selection.features import ImprFeature
 root = Path.cwd()
 package = types.ModuleType('rvv_provider')
 package.__path__ = [str(root)]
 sys.modules[package.__name__] = package
+import importlib
+registry = importlib.import_module('rvv_provider.src.rvv.features.registry')
+assert 'rvv_provider.src.rvv.backend' not in sys.modules
+from rvv_provider.src.rvv.transforms import perop_blocks, requant_fuse
+perop_blocks.ensure_registered()
+requant_fuse.ensure_registered()
+assert 'rvv_provider.src.rvv.backend' not in sys.modules
 spec = importlib.util.spec_from_file_location('rvv_provider.backend', root / 'backend.py')
 backend = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = backend
 spec.loader.exec_module(backend)
+assert backend._FEATURES is registry._FEATURES
 names = (root / 'tests/feature_names_v1.txt').read_text().splitlines()
 metadata = json.loads((root / 'src/rvv/features/feature_metadata_v1.json').read_text())
 assert len(names) == 95
@@ -541,6 +599,44 @@ def test_provider_caps_and_frozen_shape_adaptation(monkeypatch):
         "accum_resident_v3p_1_8_4_8_16"
     ]
 
+    # The shared package resolver must see per-hart extents, not whole-model N.
+    from merlin.compiler.backend import host
+    from merlin.kernels import shapes
+    from rvv_provider.src.rvv.policy.shape_adapt import shape_adapted_features
+
+    observed = []
+    monkeypatch.setattr(shapes, "contraction_shapes", lambda _: failing[:1])
+    monkeypatch.setattr(host, "resolve_features", lambda knobs, manifest, *, shapes, codegen_provider: (
+        observed.extend(s.parallel for s in shapes) or ["fixture"]
+    ))
+    package = SimpleNamespace(knobs={}, manifest={"target": "rvv"}, compiler_features=[])
+    assert shape_adapted_features(package, "/fixture", harts=3) == ["fixture"]
+    assert set(observed) == {(1, 3), (1, 2)}
+
+
+def test_weight_panel_boundary_checks_real_ir_argument_shapes_and_types(tmp_path):
+    from rvv_provider.src.rvv.packing.weight_panel import PanelPackRefused, assert_abi_agrees
+
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    prepared = tmp_path / "prepared.mlir"
+
+    def module(args):
+        return "builtin.module { func.func @forward(" + args + ") { func.return } }"
+
+    original = module("%a: tensor<2x4xi8>, %b: tensor<4x3xi8>")
+    (bundle / "model.mlir").write_text(original)
+    prepared.write_text(original)
+    assert assert_abi_agrees(bundle, prepared) == 2
+    for incompatible in (
+        "%a: tensor<2x4xi8>",
+        "%a: tensor<2x4xi8>, %b: tensor<4x2xi8>",
+        "%a: tensor<2x4xi8>, %b: tensor<4x3xi32>",
+    ):
+        prepared.write_text(module(incompatible))
+        with pytest.raises(PanelPackRefused, match="ABI skew"):
+            assert_abi_agrees(bundle, prepared)
+
 
 def test_name_derived_feature_descriptions_match_pre_extraction():
     import json
@@ -567,3 +663,55 @@ def test_name_derived_feature_descriptions_match_pre_extraction():
     assert set(names) == set(expected)
     for name in names:
         assert BACKEND._FEATURES.get(name).description == expected[name], name
+
+
+def test_selected_microkernel_policy_does_not_overwrite_registered_resolvers(monkeypatch):
+    from merlin.kernels import microkernel
+
+    resolver = lambda spec: ["custom_resolver"]
+    shaped = lambda spec, shapes: ["custom_shape_policy"]
+    monkeypatch.setitem(microkernel._RESOLVERS, "rvv", resolver)
+    monkeypatch.setitem(microkernel._SHAPE_POLICIES, "rvv", shaped)
+    knobs = {"MR": 4, "NR": 16, "KC": 16}
+    assert BACKEND.microkernel_features(knobs) == [
+        BACKEND.ensure_v3_microkernel(4, 16, 16), "erase_self_copy"
+    ]
+    shapes = [microkernel.ContractionShape("linalg.matmul", (1, 16), (32,))]
+    assert BACKEND.microkernel_features(knobs, shapes=shapes) == [
+        BACKEND.ensure_v3_perop_microkernel(1, 16, 4, 16, 16), "erase_self_copy"
+    ]
+    assert microkernel._RESOLVERS["rvv"] is resolver
+    assert microkernel._SHAPE_POLICIES["rvv"] is shaped
+    assert microkernel.resolve("rvv", microkernel.MicrokernelSpec.from_knobs(knobs)) == [
+        "custom_resolver"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("axis", "legacy_feature"), [
+        ({}, "accumulator_resident_microkernel_v3"),
+        ({"vl_strategy": "dynamic"}, "accum_resident_v3vl_4_16_16"),
+        ({"pack": True}, "vfmacc_packed_4_16_16"),
+        ({"unroll_m": True}, "accum_resident_v3u_4_16_16"),
+        ({"k_block": True}, "accum_resident_v3kb_4_16_16"),
+    ],
+)
+def test_selected_policy_preserves_legacy_generated_schedule_bytes(axis, legacy_feature):
+    from merlin.llvmlower import impr_features
+
+    knobs = {"MR": 4, "NR": 16, "KC": 16, **axis}
+    # Frozen feature identities from the pre-cutover implementation. The core
+    # adapter now delegates here, so comparing those two selectors is circular.
+    old = [legacy_feature, "erase_self_copy"]
+    selected = BACKEND.microkernel_features(knobs)
+    assert old == selected
+    # The historical selector explicitly registered these two dynamic families.
+    # Recreate that independent legacy registry state before comparing bytes.
+    if axis.get("unroll_m"):
+        impr_features.ensure_v3_unrolled_microkernel(4, 16, 16)
+    if axis.get("k_block"):
+        impr_features.ensure_v3_kblocked_microkernel(4, 16, 16)
+    source = "module {}"
+    assert impr_features.apply_schedule(source, frozenset(old)) == BACKEND.apply_schedule(
+        source, frozenset(selected)
+    )

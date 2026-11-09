@@ -29,7 +29,7 @@ from __future__ import annotations
 # ruff: noqa: B023, PLW1510, S112, UP031 -- frozen provider extraction
 from typing import Any
 
-from merlin.llvmlower.compiler_api import PAR_TAG_PREFIX, class_token
+from merlin.compiler.passes.contract import PAR_TAG_PREFIX, class_token
 
 #: Marker pass name spliced after specialization; the runner splits the pipeline here.
 BLOCK_TAG_MARKER = "__merlin_tag_perop_blocks__"
@@ -594,10 +594,10 @@ def ensure_registered(registry=None) -> None:
     feature registry: a name registered only in the parent fails to resolve in the child (the exact
     failure ``impr_features._try_lazy_register`` exists for).
     """
-    from merlin.llvmlower.feature_registry import ImprFeature
+    from merlin.compiler.selection.features import ImprFeature
 
     if registry is None:
-        from ..backend import _FEATURES
+        from ..features.registry import _FEATURES
 
         registry = _FEATURES
 

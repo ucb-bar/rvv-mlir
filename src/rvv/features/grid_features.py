@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
+from merlin.compiler.selection.features import FeatureRegistry, ImprFeature
 
 from ..policy import lmul_group
 from ..transforms.active_features import fused_vfmacc_tiled_schedule

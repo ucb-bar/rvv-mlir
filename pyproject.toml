@@ -1,5 +1,29 @@
+[build-system]
+requires = ["setuptools>=70.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rvv-mlir"
+version = "0.1.0"
+description = "RVV compiler provider and published schedules for the Merlin SDK"
+requires-python = ">=3.12"
+dependencies = ["merlin>=0.0.1", "xdsl>=0.68,<0.76", "numpy", "pyyaml"]
+
+[project.entry-points."merlin.backends"]
+rvv = "merlin_rvv.service"
+
+[tool.setuptools]
+packages = ["merlin_rvv", "merlin_rvv.src", "merlin_rvv.src.rvv", "merlin_rvv.src.rvv.features",
+            "merlin_rvv.src.rvv.transforms", "merlin_rvv.src.rvv.packing", "merlin_rvv.src.rvv.policy"]
+package-dir = { merlin_rvv = "." }
+include-package-data = false
+
+[tool.setuptools.package-data]
+merlin_rvv = ["provider.yaml", "contracts/*.yaml", "schedules/*/*.mlir", "schedules/*/*.yaml",
+              "src/rvv/features/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"

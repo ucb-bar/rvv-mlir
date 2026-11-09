@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from merlin.mining.registry import RvvPackage
+    from merlin.compiler.backend.host import HostPackage
 
 
 class _SplitShape:
@@ -52,7 +52,7 @@ def _harts_split_shapes(shapes, harts: int) -> list:
 
 
 def shape_adapted_features(
-    pkg: RvvPackage, model_dir: str | Path, *, harts: int = 1
+    pkg: HostPackage, model_dir: str | Path, *, harts: int = 1
 ) -> list[str]:
     """``pkg``'s compiler features re-resolved against the CONTRACTIONS ``model_dir`` actually has.
 
@@ -76,14 +76,16 @@ def shape_adapted_features(
     ``harts`` is the hart count the image will be built for. It matters because the multicore stage
     splits each matmul over N BEFORE this schedule runs, so what the block must cover is the per-hart
     tile, not the model's N — see :func:`_harts_split_shapes`."""
+    from merlin.compiler.backend.host import resolve_features
     from merlin.kernels.shapes import contraction_shapes
-    from merlin.mining.registry import _resolve_features
+
+    from .. import backend
 
     shapes = contraction_shapes(Path(model_dir) / "model.mlir")
     if not shapes:
         return list(pkg.compiler_features)
     shapes = _harts_split_shapes(shapes, int(harts))
-    feats = _resolve_features(pkg.knobs, pkg.manifest, shapes=shapes)
+    feats = resolve_features(pkg.knobs, pkg.manifest, shapes=shapes, codegen_provider=backend)
     return _adapt_frozen_points(
         feats, shapes, target=str(pkg.manifest.get("target", "rvv"))
     )
@@ -129,7 +131,7 @@ def _schedule_pinned_blocks(schedule_text: str) -> dict[str, tuple[int, int]]:
     return blocks
 
 
-def blocking_risks(pkg: RvvPackage, model_dir: str | Path) -> list[str]:
+def blocking_risks(pkg: HostPackage, model_dir: str | Path) -> list[str]:
     """Op classes whose extents this package's SCHEDULE-PINNED block would mask, as messages.
 
     A masked parallel dim is not a style question: it fails to lower outright on the integer path and

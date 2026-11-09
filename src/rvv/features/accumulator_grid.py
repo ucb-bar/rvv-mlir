@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from merlin.llvmlower.feature_registry import FeatureRegistry, ImprFeature
+from merlin.compiler.selection.features import FeatureRegistry, ImprFeature
 
 from ..transforms.active_features import (
     _accumulator_resident_pipeline,
