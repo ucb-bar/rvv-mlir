@@ -1,5 +1,25 @@
 # rvv-mlir
 
+## Explicit integer file preparation
+
+`backend.integer_file_api()` exposes default-off preparation for a native file
+workflow. `prepare_file(source, work, target, windows=False,
+contractions=False, blocks=False)` uses Merlin's existing contraction normal
+form for closed signed-I8, zero-seeded I32 MACs. It preserves the public output
+layout and rejects unknown scalar wiring, unsigned extensions and overflow
+flags. The selected provider owns canonical gathering and register scheduling;
+the caller still runs ordinary native lowering and complete numerical checks.
+
+With `blocks=True`, exact power-of-two M/N divisors are bounded by the supplied
+`PanelTarget`: VLEN, SEW, LMUL, architectural register budget and explicit
+workspace/cache budgets remain separate. This avoids arithmetic on padded
+output tiles; prime dimensions may conservatively use one-element tiles. It is
+a legalization/scheduling option, not a measured optimal kernel or a hardware
+utilization claim. `lowering_schedule(report['register_blocks']['table'])`
+uses the existing per-op schedule machinery. Combine it with the public
+streaming API's `lowering_pipeline(schedule_path)` to retain its structural
+tags. No existing pipeline or default feature is changed.
+
 The **base RISC-V Vector (RVV) layer** for [Merlin](https://github.com/ucb-bar/merlin).
 
 The `handwritten-implementation` branch carries executable RVV pipeline construction in `src/rvv/backend.py`

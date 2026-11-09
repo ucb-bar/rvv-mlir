@@ -944,6 +944,13 @@ def copy_loops_api():
     return static_copy
 
 
+def integer_file_api():
+    """Optional typed integer normalization and VLEN-budgeted exact blocks."""
+    from .transforms import integer_file
+
+    return integer_file
+
+
 def perop_blocks_api():
     """Return the RVV per-operation block and tagging implementation."""
     from .transforms import perop_blocks
