@@ -951,6 +951,13 @@ def integer_file_api():
     return integer_file
 
 
+def borrowed_i8_leaf_api():
+    """Default-off compiler leaves over caller-owned strided I8/I32 buffers."""
+    from .packing import borrowed_i8_leaf
+
+    return borrowed_i8_leaf
+
+
 def perop_blocks_api():
     """Return the RVV per-operation block and tagging implementation."""
     from .transforms import perop_blocks
