@@ -188,3 +188,51 @@ emitted vector arithmetic and allocation placement. It establishes no speedup
 for this pass, no physical lane utilization, and no timing accuracy. FPGA
 panel-locality observations that motivated the optimization are separate
 experiments; performance at other VLEN values has not been measured.
+
+## Opt-in static strided-copy lowering
+
+Use `backend.copy_loops_api().lower_file(..., enabled=True)` to replace eligible
+integer `memref.copy` operations with lexicographic sequential SCF load/store
+loops after bufferization. The normal pipeline remains the default:
+
+```python
+copies = backend.copy_loops_api()
+result = copies.lower_file(
+    prepared_ir,
+    pipeline=stream_api.lowering_pipeline(schedule),  # complete provider pipeline
+    mlir_opt=selected_mlir_opt,
+    compiler_python=selected_python_with_torch_mlir,
+    work=new_private_directory,
+    enabled=True,
+)
+# result["llvm_dialect"] -> ordinary mlir-translate -> LLVM code generation
+```
+
+The selected native Python bindings are an explicit compiler tool; the
+rewriter imports no Merlin code and records their file digests. The API
+preserves the selected virtual-environment interpreter path. Existing output
+directories are refused.
+
+The pass accepts ranked static i8/i16/i32/i64 copies in CPU memory with
+strided layouts, up to the explicit rank budget (default 4). Dynamic offsets
+and strides are retained in the original descriptors. The loops read an
+element before storing that element and preserve lexicographic order for
+overlapping views, including negative and zero strides. Loads/stores specify
+alignment 1; no alignment, disjointness, noalias or parallel-execution
+assumptions are added. No buffer allocation, tile layout, arithmetic,
+quantization domain or reduction order changes. Both-contiguous copies keep
+the upstream fast path. Dynamic shapes, unranked buffers, noninteger data,
+other memory spaces and excessive rank retain their original transport with
+named refusal reasons. This is cheaper copy transport, not copy elimination.
+
+VLEN is not hardcoded by this pass. The caller's original vector schedule
+and register geometry remain in force. The guarded convolution corpus passes
+at VLEN 128/256/512/1024; the separate alias corpus checks full storage for 80
+before/after host and native cases across all four integer widths. These
+functional checks do not establish timing accuracy or physical utilization.
+
+A fresh relink of the original tiny compiler-generated convolution keeps the
+driver, runtime, VME controls and independent goldens unchanged. The first
+functional comparison reduces RVV instruction work substantially; the release
+receipts distinguish instruction counts from hardware cycles. No automatic
+CLI routing, whole-model coverage or FPGA speedup is claimed.

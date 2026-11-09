@@ -937,6 +937,13 @@ def im2col_stream_api():
     return im2col_stream
 
 
+def copy_loops_api():
+    """Return default-off static strided-copy transport lowering."""
+    from .transforms import static_copy
+
+    return static_copy
+
+
 def perop_blocks_api():
     """Return the RVV per-operation block and tagging implementation."""
     from .transforms import perop_blocks
