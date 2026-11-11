@@ -1124,3 +1124,10 @@ def microkernel_features(knobs: dict, shapes=()) -> list[str]:
 
     register_microkernel_resolver()
     return resolve(knobs, "rvv", shapes)
+
+
+def exact_dynamic_quant_api():
+    """Return the opt-in integer-only BF16 dynamic quantization MLIR emitter."""
+    from .transforms import exact_dynamic_quant
+
+    return exact_dynamic_quant
