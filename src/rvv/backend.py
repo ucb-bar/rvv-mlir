@@ -1131,3 +1131,10 @@ def exact_dynamic_quant_api():
     from .transforms import exact_dynamic_quant
 
     return exact_dynamic_quant
+
+
+def exact_code_transpose_api():
+    """Return the opt-in integer byte-transpose MLIR emitter."""
+    from .transforms import exact_code_transpose
+
+    return exact_code_transpose
