@@ -50,6 +50,14 @@ def test_default_off_emits_no_source_and_creates_no_artifacts(tmp_path):
     assert result["enabled"] is False
 
 
+def test_kn_layout_selection_and_invalid_layout():
+    source = API.emit_mlir(spec(weight_layout="KN"), enabled=True)
+    assert "%kn = arith.muli %kv, %vn" in source
+    assert "%wi = arith.addi %columns, %kn" in source
+    with pytest.raises(ValueError):
+        spec(weight_layout="NN")
+
+
 @pytest.mark.parametrize("enabled", [0, 1, None, "true", []])
 def test_opt_in_requires_an_explicit_boolean(tmp_path, enabled):
     with pytest.raises(ValueError):

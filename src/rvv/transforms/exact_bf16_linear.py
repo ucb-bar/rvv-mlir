@@ -21,14 +21,17 @@ INDEX_MAX = (1 << 63) - 1
 
 @dataclass(frozen=True)
 class LinearSpec:
-    """Static contiguous BF16 A[M,K], original W[N,K], and output[M,N]."""
+    """Static contiguous BF16 A[M,K], W[N,K] or B[K,N], and output[M,N]."""
 
     m: int
     k: int
     n: int
     symbol: str = "rvv_exact_bf16_linear"
+    weight_layout: str = "NK"
 
     def __post_init__(self) -> None:
+        if self.weight_layout not in ("NK", "KN"):
+            raise ValueError("weight_layout must be NK or KN")
         for name in ("m", "k", "n"):
             value = getattr(self, name)
             if type(value) is not int or not 0 < value <= INDEX_MAX:
@@ -49,7 +52,8 @@ def _selected_leaf(spec: LinearSpec, enabled: bool, target: PanelTarget | None) 
         raise TypeError("spec must be LinearSpec")
     if not enabled:
         return None
-    return leaf.LeafSpec(spec.m, spec.k, spec.n, symbol=spec.symbol + "_leaf", target=target)
+    return leaf.LeafSpec(spec.m, spec.k, spec.n, symbol=spec.symbol + "_leaf", target=target,
+                         weight_layout=spec.weight_layout)
 
 
 def emit_mlir(spec: LinearSpec, *, enabled: bool = False, target: PanelTarget | None = None) -> str | None:

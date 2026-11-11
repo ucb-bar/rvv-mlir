@@ -20,6 +20,12 @@ Custom symbols use the `rvv_exact_bf16_linear_` namespace. Inputs are contiguous
 BF16 A[M,K], original BF16 W[N,K], and positive-zero F32 seed[M,N]; output is
 BF16 [M,N]. Naturally aligned buffers and valid capacities are caller obligations.
 
+Set `LinearSpec(..., weight_layout="KN")` when the region already receives the
+contiguous transposed B[K,N]. The default remains `"NK"`. This changes only the
+weight address to `k*N+n`; the ascending-K loop, independent vector output lanes,
+admission checks, arithmetic flags, and final BF16 conversion are identical.
+Callers that already hold B[K,N] therefore need no extra relayout.
+
 The leaf uses ascending-K SCF iteration, integer widening, unflagged
 `arith.mulf`/`arith.addf`, and one integer BF16 RNE conversion. Shared LLVM
 vector/finalization passes bypass tuned contraction and reassociation schedules.

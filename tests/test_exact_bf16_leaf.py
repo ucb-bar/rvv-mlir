@@ -17,7 +17,7 @@ from rvv.transforms import exact_bf16_leaf as API
 
 @pytest.mark.parametrize("changes", [{"m": 0}, {"k": True}, {"n": 1 << 63},
                                          {"target": API.PanelTarget(128,64,8,32,1,1024)}, {"symbol": "a;bad"},
-                                         {"m": 1 << 62, "k": 2}])
+                                         {"m": 1 << 62, "k": 2}, {"weight_layout": "NN"}])
 def test_invalid_specs_fail_closed(changes):
     with pytest.raises(ValueError):
         API.LeafSpec(**({"m": 2, "k": 9, "n": 7} | changes))
@@ -64,9 +64,11 @@ def _gold(a, w, m, k, n):
 
 
 @pytest.mark.parametrize("m", [2, 5, 8])
-def test_generated_host_equality_order_tails_offsets_and_overflow(tmp_path, m):
+@pytest.mark.parametrize("n", [7, 11])
+@pytest.mark.parametrize("layout", ["NK", "KN"])
+def test_generated_host_equality_order_tails_offsets_and_overflow(tmp_path, m, n, layout):
     opt, translate, clang = _tools()
-    spec = API.LeafSpec(m, 9, 7)
+    spec = API.LeafSpec(m, 9, n, weight_layout=layout)
     source, lowered, llvm, shared = (tmp_path / n for n in ("leaf.mlir", "leaf.llvm.mlir", "leaf.ll", "leaf.so"))
     source.write_text(API.emit_mlir(spec))
     commands = [[opt, str(source), "--pass-pipeline=builtin.module("+API.PIPELINE+")", "-o", str(lowered)],
@@ -82,28 +84,30 @@ def test_generated_host_equality_order_tails_offsets_and_overflow(tmp_path, m):
     corpus = [0x0000, 0x8000, 0x0001, 0x8001, 0x3f80, 0xbf80, 0x3f81,
               0x4000, 0xc000, 0x3eab, 0x3f00, 0x3380]
     a = [corpus[(i*5+3) % len(corpus)] for i in range(m*9)]
-    w = [corpus[(i*7+5) % len(corpus)] for i in range(63)]
+    w = [corpus[(i*7+5) % len(corpus)] for i in range(n*9)]
     def invoke(av, wv):
-        arrays = [(ctypes.c_uint16*(len(v)+4))(*([0x5a5a]+v+[0x5a5a]*3)) for v in (av,wv,[0x5a5a]*(m*7))]
+        if layout == "KN":
+            wv = [wv[j*9+k] for k in range(9) for j in range(n)]
+        arrays = [(ctypes.c_uint16*(len(v)+4))(*([0x5a5a]+v+[0x5a5a]*3)) for v in (av,wv,[0x5a5a]*(m*n))]
         descs = [Descriptor(x,x,1,len(x)-4,1) for x in arrays]
         status = leaf(*(ctypes.byref(d) for d in descs))
         assert list(arrays[0]) == [0x5a5a]+av+[0x5a5a]*3
         assert list(arrays[1]) == [0x5a5a]+wv+[0x5a5a]*3
         assert arrays[2][0] == 0x5a5a and list(arrays[2])[-3:] == [0x5a5a]*3
-        return status,list(arrays[2])[1:1+m*7]
+        return status,list(arrays[2])[1:1+m*n]
     status, values = invoke(a,w)
     assert status == 0
-    assert values == _gold(a,w,m,9,7)
+    assert values == _gold(a,w,m,9,n)
     # Ascending F32 adds lose the middle 1; reassociation would produce 1.
     ordered_a = [0x4b80, 0x3f80, 0xcb80] + [0]*6
-    status, values = invoke(ordered_a*m, [0x3f80]*63)
-    assert status == 0 and values == [0]*(m*7)
+    status, values = invoke(ordered_a*m, [0x3f80]*(n*9))
+    assert status == 0 and values == [0]*(m*n)
     # F32 stays finite, but a BF16 halfway rounding overflows.
     rounding_overflow = [0x7f7f, 0x7b00] + [0]*7
-    status, _ = invoke(rounding_overflow*m, [0x3f80]*63)
+    status, _ = invoke(rounding_overflow*m, [0x3f80]*(n*9))
     assert status == 1
     # F32 overflow must also be reported to the transactional wrapper.
-    status, _ = invoke([0x7f7f]*(m*9), [0x3f80]*63)
+    status, _ = invoke([0x7f7f]*(m*9), [0x3f80]*(n*9))
     assert status == 1
 
 

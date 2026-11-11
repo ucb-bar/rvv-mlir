@@ -35,6 +35,7 @@ class LeafSpec:
     n: int
     symbol: str = "rvv_exact_bf16_mlir_leaf"
     target: PanelTarget | None = None
+    weight_layout: str = "NK"
 
     @property
     def geometry(self):
@@ -48,6 +49,8 @@ class LeafSpec:
         return self.geometry.nr
 
     def __post_init__(self):
+        if self.weight_layout not in ("NK", "KN"):
+            raise ValueError("weight_layout must be NK or KN")
         for name in ("m", "k", "n"):
             v = getattr(self, name)
             if type(v) is not int or not 0 < v <= (1 << 63) - 1:
@@ -114,15 +117,21 @@ def emit_mlir(spec: LeafSpec) -> str:
         %nv = vector.splat %ni : {vi}
         %columns = arith.addi %nv, %lane : {vi}
         %mask = arith.cmpi ult, %columns, %vn : {vi}
-        %wbase = arith.muli %columns, %vk : {vi}
 ''')
+        if spec.weight_layout == "NK":
+            blocks.append(f'        %wbase = arith.muli %columns, %vk : {vi}\n')
         accs = ', '.join(f'%acc{r}' for r in range(rows))
         args = ', '.join(f'%sum{r} = %zerof' for r in range(rows))
         types = ', '.join([vf]*rows)
         blocks.append(f'        {accs} = scf.for %ki = %c0 to %ck step %c1 iter_args({args}) -> ({types}) {{\n')
-        blocks.append(f'''          %kv = vector.splat %ki : {vi}
-          %wi = arith.addi %wbase, %kv : {vi}
-          %wx = vector.gather %w[%c0][%wi], %mask, %zero16 : {w}, {vi}, {vb}, {v16} into {v16}
+        blocks.append(f'          %kv = vector.splat %ki : {vi}\n')
+        if spec.weight_layout == "NK":
+            blocks.append(f'          %wi = arith.addi %wbase, %kv : {vi}\n')
+        else:
+            blocks.append(f'''          %kn = arith.muli %kv, %vn : {vi}
+          %wi = arith.addi %columns, %kn : {vi}
+''')
+        blocks.append(f'''          %wx = vector.gather %w[%c0][%wi], %mask, %zero16 : {w}, {vi}, {vb}, {v16} into {v16}
           %wb = arith.extui %wx : {v16} to {v32}
           %ws = arith.shli %wb, %vshift : {v32}
           %wf = arith.bitcast %ws : {v32} to {vf}
@@ -217,5 +226,5 @@ def compile_leaf(spec: LeafSpec, *, work: str | Path, mlir_opt: str | Path,
             "c_interface_symbol": "_mlir_ciface_"+spec.symbol,
             "pipeline": PIPELINE, "commands": commands, "lanes": spec.lanes,
             "rows": spec.geometry.mr,
-            "reduction_order": "ascending_k", "weight_layout": "NK",
+            "reduction_order": "ascending_k", "weight_layout": spec.weight_layout,
             "contraction": False, "rounding": "integer_bf16_rne"}
