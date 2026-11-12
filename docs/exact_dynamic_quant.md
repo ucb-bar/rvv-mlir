@@ -1,0 +1,11 @@
+# Exact BF16 dynamic quantization
+
+`backend.exact_dynamic_quant_api()` provides explicitly selected ordinary MLIR for the generated contiguous grouped BF16-to-FP8 dynamic quantizer. It preserves finite absolute maximum selection, signed I32 group exponents, exponent clamping, FP8 RNE encoding, saturation, and nonfinite handling through integer operations. Weight values and device placement are unchanged.
+
+`QuantSpec(groups, group_elements, lanes=8, symbol="rvv_exact_dynamic_quant")` describes positive static groups and their contiguous element count. Custom symbols use the `rvv_exact_dynamic_quant_` namespace. The default eight I32 lanes fill one VLEN 256 register at LMUL 1, the measured target. Other power-of-two lane counts up to 32 are explicit compiler selections, with no throughput claim. Group tails use masked byte loads and stores. Byte loads, bitcasts, and little-endian exponent bytes preserve unaligned input and output access on the supported little-endian RV64 target.
+
+`emit_mlir(spec, enabled=True)` emits the destination-passing leaf, and `emit_wrapper(spec, enabled=True)` emits the generated region ABI `int symbol(void *, const void *const *, void *const *)`. Both refuse unless `enabled=True`. Inputs contain one BF16 byte buffer; outputs contain FP8 code bytes and four little-endian exponent bytes per group. The wrapper preserves the original null, range-overflow, and overlap checks. Callers supply valid storage capacities. This API adds no automatic compiler routing.
+
+`compile_kernel(spec, work=..., mlir_opt=..., mlir_translate=..., clang=..., enabled=True, march="rv64gcv_zvl256b")` lowers the leaf with the exact BF16 leaf's `PIPELINE`, translates it to LLVM IR, and compiles the leaf and wrapper objects with that leaf's `CODEGEN_FLAGS` for the selected `march`. Explicit MLIR vectors provide vector arithmetic while compiler autovectorization stays disabled.
+
+Run `tests/test_exact_dynamic_quant.py` with `RVV_MLIR_OPT`, `RVV_MLIR_TRANSLATE`, and `RVV_EXACT_CLANG` selecting compatible tools. Native tests cover every BF16 encoding against six maximum anchors, zero and subnormal groups, infinities and NaNs, masked tails, byte-unaligned buffers, output guards, and invalid or overlapping region arguments, and check that `compile_kernel` emits RV64 vector objects. They do not measure hardware timing.

@@ -937,6 +937,13 @@ def im2col_stream_api():
     return im2col_stream
 
 
+def exact_bf16_linear_api():
+    """Return the default-off exact BF16 original-weight-layout MLIR leaf."""
+    from .transforms import exact_bf16_linear
+
+    return exact_bf16_linear
+
+
 def copy_loops_api():
     """Return default-off static strided-copy transport lowering."""
     from .transforms import static_copy
@@ -1117,3 +1124,17 @@ def microkernel_features(knobs: dict, shapes=()) -> list[str]:
 
     register_microkernel_resolver()
     return resolve(knobs, "rvv", shapes)
+
+
+def exact_dynamic_quant_api():
+    """Return the opt-in integer-only BF16 dynamic quantization MLIR emitter."""
+    from .transforms import exact_dynamic_quant
+
+    return exact_dynamic_quant
+
+
+def exact_code_transpose_api():
+    """Return the opt-in integer byte-transpose MLIR emitter."""
+    from .transforms import exact_code_transpose
+
+    return exact_code_transpose
