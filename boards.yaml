@@ -1,0 +1,58 @@
+# RVV boards: Linux-hosted RVV silicon reached over SSH (Merlin `flow: linux`, runtime.remote_linux).
+#
+# Merlin's board schema (merlin.runtime.boards.Board). Select with
+#   MERLIN_BOARD_CATALOG=<this repo>/boards.yaml
+# alongside any other catalog, separated by ':'. A board declared by two selected catalogs is refused.
+#
+# Facts come from the board itself (/proc/cpuinfo, its device tree, cpufreq), not assumed. Access is
+# per host, never a board fact: MERLIN_<BOARD>_HOST (user@ip), MERLIN_<BOARD>_SSH_KEY,
+# MERLIN_<BOARD>_SSH_PORT (optional) and MERLIN_<BOARD>_TOOLCHAIN (the cross-toolchain install; its
+# vendor release layout and default install are declared by the owning target contract under
+# `runtime.toolchain`). MERLIN_<BOARD>_{MARCH,VLEN,OMP_THREADS,REMOTE_DIR} override the facts below
+# on one host. Moved from Merlin's src/merlin/mining/k1.py constants.
+schema_version: 1
+
+boards:
+  # SpacemiT K1 (eight X60 cores, two clusters of four) running Bianbu Linux/glibc: real RVV silicon,
+  # reached over SSH and built with the vendor cross-toolchain (MERLIN_K1_TOOLCHAIN, located through the
+  # k1_cpu target contract's `runtime.toolchain`). Facts from the board's /proc/cpuinfo, device tree and
+  # cpufreq: the ISA carries zfh/zfhmin and zvfh/zvfhmin (so `march` names them), vlenb=32 (VLEN=256),
+  # /proc/device-tree/cpus/timebase-frequency is 24 MHz, scaling_cur_freq is 1.6 GHz. The kernel does
+  # not delegate the userspace `cycle` CSR (`rdcycle` traps) but does delegate `time`, so the harness
+  # times with rdtime and reports estimated cycles (cycle_accurate=false).
+  #
+  # /tmp is a ~1.9 GB tmpfs (RAM), so binaries over 256 MiB and every mmap'd weight blob go to
+  # /root/merlin_k1 on the rootfs flash instead; blobs of 1.5 GB or more are mmap'd rather than linked.
+  # The lowered models alloca large intermediates, so the model thread gets a 2 GiB stack (the board
+  # has ~3.5 GB of RAM). The vendor clang-19 crashes in its register scavenger on the whole-model
+  # `model_call.c`, so that one file is compiled by the repo's clang against the vendor sysroot.
+  #
+  # Values as previously hard-coded in merlin/mining/k1.py (HEAD 76a507ca3): march :70, mabi :71,
+  # vlen :81, substrate :137, timebase_hz :144, chip_freq_hz :145, stack_bytes :150, openmp dir :157,
+  # harts (OMP threads) :158, remote_dir :163, mmap threshold :916, triple :1105/:1222/:1342,
+  # model_call split + sysroot :1297-1339, scratch dir/limit :1796/:1805, OMP_PROC_BIND :1956/:2220.
+  k1:
+    dram_bytes: null
+    dram_base: null
+    harts: 8
+    vlen: 256
+    console: ssh
+    flow: linux
+    march: rv64gcv_zfh_zvfh
+    mabi: lp64d
+    triple: riscv64-unknown-linux-gnu
+    timebase_hz: 24000000
+    chip_freq_hz: 1600000000
+    stack_bytes: 2 GiB
+    remote_dir: /root/merlin_k1
+    scratch_dir: /tmp
+    scratch_limit_bytes: 256 MiB
+    mmap_weights_threshold_bytes: 1500000000
+    omp_proc_bind: spread
+    substrate: k1
+    toolchain_sysroot: sysroot
+    model_call_compiler: llvm
+    openmp_runtime_dir: toolchains/openmp
+    notes: >-
+      SpacemiT K1 / X60 Linux board: VLEN=256, 8 harts, rdtime at 24 MHz against a 1.6 GHz core clock.
+      Measurements are recorded under substrate `k1` (the k1_cpu contract's measurement.wall_from).
