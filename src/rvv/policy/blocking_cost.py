@@ -50,7 +50,7 @@ def _rvv_best_block(
     from functools import reduce
     from math import gcd
 
-    from merlin.kernels.microkernel import largest_divisor_at_most
+    from merlin.analysis.kernels.microkernel import largest_divisor_at_most
 
     if not extents:
         return int(MR_cap), int(NR_cap)

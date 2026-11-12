@@ -48,38 +48,38 @@ is byte-identical to the baseline.
 
 from __future__ import annotations
 
-from merlin.llvmlower.alloca_scope_lower import (
+from merlin.compiler.lower.model.alloca_scope_lower import (
     RUNNER_PRELUDE as _ALLOCA_SCOPE_LOWER_PRELUDE,
 )
-from merlin.llvmlower.broadcast_fold import RUNNER_PRELUDE as _BROADCAST_FOLD_PRELUDE
-from merlin.llvmlower.concat_dps import RUNNER_PRELUDE as _CONCAT_DPS_PRELUDE
-from merlin.llvmlower.copy_expand import MID_STAGE_SRC as _MID_STAGE_SRC
-from merlin.llvmlower.copy_expand import RUNNER_PRELUDE as _COPY_EXPAND_PRELUDE
-from merlin.llvmlower.int_softmax_table import (
+from merlin.compiler.lower.model.broadcast_fold import RUNNER_PRELUDE as _BROADCAST_FOLD_PRELUDE
+from merlin.compiler.lower.model.concat_dps import RUNNER_PRELUDE as _CONCAT_DPS_PRELUDE
+from merlin.compiler.lower.model.copy_expand import MID_STAGE_SRC as _MID_STAGE_SRC
+from merlin.compiler.lower.model.copy_expand import RUNNER_PRELUDE as _COPY_EXPAND_PRELUDE
+from merlin.compiler.lower.model.int_softmax_table import (
     RUNNER_PRELUDE as _INT_SOFTMAX_TABLE_PRELUDE,
 )
-from merlin.llvmlower.named_broadcast_fold import (
+from merlin.compiler.lower.model.named_broadcast_fold import (
     RUNNER_PRELUDE as _NAMED_BROADCAST_FOLD_PRELUDE,
 )
-from merlin.llvmlower.parallel_coarsen import (
+from merlin.compiler.lower.model.parallel_coarsen import (
     RUNNER_PRELUDE as _PARALLEL_COARSEN_PRELUDE,
 )
-from merlin.llvmlower.parallel_coarsen import STAGE_SRC as _PARALLEL_COARSEN_STAGE_SRC
-from merlin.llvmlower.parallel_grain import LATE_STAGE_SRC as _PARALLEL_GRAIN_LATE_SRC
-from merlin.llvmlower.parallel_grain import RUNNER_PRELUDE as _PARALLEL_GRAIN_PRELUDE
-from merlin.llvmlower.parallel_team import RUNNER_PRELUDE as _PARALLEL_TEAM_PRELUDE
-from merlin.llvmlower.parallel_team import STAGE_SRC as _PARALLEL_TEAM_STAGE_SRC
-from merlin.llvmlower.roundeven_intrinsic import (
+from merlin.compiler.lower.model.parallel_coarsen import STAGE_SRC as _PARALLEL_COARSEN_STAGE_SRC
+from merlin.compiler.lower.model.parallel_grain import LATE_STAGE_SRC as _PARALLEL_GRAIN_LATE_SRC
+from merlin.compiler.lower.model.parallel_grain import RUNNER_PRELUDE as _PARALLEL_GRAIN_PRELUDE
+from merlin.compiler.lower.model.parallel_team import RUNNER_PRELUDE as _PARALLEL_TEAM_PRELUDE
+from merlin.compiler.lower.model.parallel_team import STAGE_SRC as _PARALLEL_TEAM_STAGE_SRC
+from merlin.compiler.lower.model.roundeven_intrinsic import (
     RUNNER_PRELUDE as _ROUND_INTRINSIC_PRELUDE,
 )
-from merlin.llvmlower.scalar_contraction import (
+from merlin.compiler.lower.model.scalar_contraction import (
     RUNNER_PRELUDE as _SCALAR_CONTRACTION_PRELUDE,
 )
-from merlin.llvmlower.scalar_pointwise_unroll import (
+from merlin.compiler.lower.model.scalar_pointwise_unroll import (
     RUNNER_PRELUDE as _SCALAR_POINTWISE_UNROLL_PRELUDE,
 )
-from merlin.llvmlower.selfcopy import RUNNER_PRELUDE as _SELFCOPY_PRELUDE
-from merlin.llvmlower.transpose_maps import RUNNER_PRELUDE as _TRANSPOSE_MAPS_PRELUDE
+from merlin.compiler.lower.model.selfcopy import RUNNER_PRELUDE as _SELFCOPY_PRELUDE
+from merlin.compiler.lower.model.transpose_maps import RUNNER_PRELUDE as _TRANSPOSE_MAPS_PRELUDE
 
 from .bmm_tail_pad import RUNNER_PRELUDE as _BMM_TAIL_PAD_PRELUDE
 from .panel_parallel import MID_STAGE_SRC as _PANEL_PARALLEL_MID_SRC

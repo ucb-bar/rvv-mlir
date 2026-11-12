@@ -9,7 +9,7 @@
 # MERLIN_<BOARD>_SSH_PORT (optional) and MERLIN_<BOARD>_TOOLCHAIN (the cross-toolchain install; its
 # vendor release layout and default install are declared by the owning target contract under
 # `runtime.toolchain`). MERLIN_<BOARD>_{MARCH,VLEN,OMP_THREADS,REMOTE_DIR} override the facts below
-# on one host. Moved from Merlin's src/merlin/mining/k1.py constants.
+# on one host. Moved from Merlin's src/merlin/analysis/mining/k1.py constants.
 schema_version: 1
 
 boards:
@@ -27,7 +27,7 @@ boards:
   # has ~3.5 GB of RAM). The vendor clang-19 crashes in its register scavenger on the whole-model
   # `model_call.c`, so that one file is compiled by the repo's clang against the vendor sysroot.
   #
-  # Values as previously hard-coded in merlin/mining/k1.py (HEAD 76a507ca3): march :70, mabi :71,
+  # Values as previously hard-coded in merlin/analysis/mining/k1.py (HEAD 76a507ca3): march :70, mabi :71,
   # vlen :81, substrate :137, timebase_hz :144, chip_freq_hz :145, stack_bytes :150, openmp dir :157,
   # harts (OMP threads) :158, remote_dir :163, mmap threshold :916, triple :1105/:1222/:1342,
   # model_call split + sysroot :1297-1339, scratch dir/limit :1796/:1805, OMP_PROC_BIND :1956/:2220.

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from merlin import api
 from merlin.compiler.request import CompileRequest
-from merlin.targetgen.plugins import load_module
+from merlin.development.targetgen.plugins import load_module
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_service_rejects_unimplemented_input_options_and_missing_native_toolchain(
     tmp_path, monkeypatch
 ):
-    from merlin.llvmlower import toolchain
+    from merlin.compiler.lower.model import toolchain
 
     monkeypatch.setenv("MERLIN_COMPILER_DRIVER", "python")
     provider = load_module(ROOT, "service.py", package_name="rvv_service_contract")
@@ -58,7 +58,7 @@ def test_service_delegates_exact_oot_pipeline_and_selected_layout(
     tmp_path, monkeypatch
 ):
     from merlin.compiler.lower.native import pipeline
-    from merlin.llvmlower import toolchain
+    from merlin.compiler.lower.model import toolchain
 
     monkeypatch.setenv("MERLIN_COMPILER_DRIVER", "python")
     provider = load_module(ROOT, "service.py", package_name="rvv_service_delegation")
@@ -106,7 +106,7 @@ def test_service_delegates_exact_oot_pipeline_and_selected_layout(
 def test_service_admits_only_the_selected_stock_transport_tools(
     tmp_path, monkeypatch, selection
 ):
-    from merlin.llvmlower import toolchain
+    from merlin.compiler.lower.model import toolchain
 
     provider = load_module(
         ROOT, "service.py", package_name="rvv_selected_stock_transport"
@@ -149,7 +149,7 @@ def test_service_admits_only_the_selected_stock_transport_tools(
 def test_selected_stock_pipeline_compiles_and_verifies_llvm_without_python_transport(
     tmp_path, monkeypatch, program
 ):
-    from merlin.llvmlower import toolchain
+    from merlin.compiler.lower.model import toolchain
 
     prefix = toolchain.llvm_install()
     opt = prefix / "bin/opt"

@@ -241,7 +241,7 @@ def test_accumulator_resident_v3_padding_variants_keep_frozen_outputs():
 
 
 def test_accumulator_microkernel_runner_source_is_provider_owned():
-    from merlin.llvmlower.runner_shared import DEALLOC_CHECK_PRELUDE, DEALLOC_CHECK_RUNNER
+    from merlin.compiler.lower.model.runner_shared import DEALLOC_CHECK_PRELUDE, DEALLOC_CHECK_RUNNER
 
     assert BACKEND.accum_microkernel_marker() == "__merlin_scalarize_a__"
     # Pin the provider's composition separately from the SDK's live lifetime
@@ -440,7 +440,7 @@ def test_rvv_register_block_legality_stays_with_provider():
 
 
 def test_rvv_schedule_renderer_and_shape_policy_live_in_provider():
-    from merlin.kernels.microkernel import ContractionShape, MicrokernelSpec
+    from merlin.analysis.kernels.microkernel import ContractionShape, MicrokernelSpec
     from rvv_provider.src.rvv.policy.microkernel_policy import (
         _rvv_microkernel_shape_policy,
     )
@@ -690,7 +690,7 @@ def test_name_derived_feature_descriptions_match_pre_extraction():
 
 
 def test_selected_microkernel_policy_does_not_overwrite_registered_resolvers(monkeypatch):
-    from merlin.kernels import microkernel
+    from merlin.analysis.kernels import microkernel
 
     resolver = lambda spec: ["custom_resolver"]
     shaped = lambda spec, shapes: ["custom_shape_policy"]

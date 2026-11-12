@@ -1,7 +1,7 @@
 """Fuse the int8 requantize epilogue INTO the contraction's own tile loop, on tensors.
 
 WHY THIS EXISTS, and what it is not. The W8A8 datapath
-(:mod:`~merlin.llvmlower.passes_quant_int`) splits one captured contraction into a
+(:mod:`~merlin.compiler.lower.model.passes_quant_int`) splits one captured contraction into a
 ``linalg.fill`` + an ``i8 x i8 -> i32`` contraction (``prov.role = "contraction"``) + an
 all-parallel ``out_f32 = sitofp(acc) * prod(scales)`` epilogue (``prov.role = "requant"``).
 The epilogue is a SECOND op over the whole accumulator, so the per-op schedule tiles and
@@ -56,7 +56,7 @@ epilogue runs moves. The output is expected bit-identical to the unfused build, 
 suite asserts that by digest rather than by a cosine gate.
 
 WHAT IT NEEDS. The pair tags are applied by the per-op block tagger
-(:func:`merlin.llvmlower.perop_blocks.tag_prepared_mlir`), so this feature REQUIRES
+(:func:`merlin.compiler.lower.model.perop_blocks.tag_prepared_mlir`), so this feature REQUIRES
 ``perop_register_block`` in the same feature set -- named alone it would have nothing to match
 and would build the baseline while reporting as applied. :mod:`merlin.runtime.backends.zephyr_model`
 raises rather than letting that happen.
@@ -92,7 +92,7 @@ FEATURE = "fuse_requant_into_contraction"
 #: scalar nest and CLANG autovectorizes), it simply now runs on the tile the contraction just produced
 #: instead of on a model-sized i32 tensor. This one additionally RESHAPES that nest into a fixed
 #: MR x NR vector tile, taking the choice away from the backend -- which is the mechanism
-#: :mod:`~merlin.llvmlower.reduce_vec` records for the amax lever (a fixed tile pre-committed the loop
+#: :mod:`~merlin.compiler.lower.model.reduce_vec` records for the amax lever (a fixed tile pre-committed the loop
 #: shape, LLVM stopped recognising the idiom it was lowering to a hardware reduce, +1,641 instructions
 #: and ``vfredmax.vs`` 54 -> 1), and the mechanism a four-lever epilogue stack was carrying when it
 #: measured +17.9% instructions and +4.4% wall on lstmnetvit int8.

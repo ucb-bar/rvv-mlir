@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from merlin.common.schemas import validate as validate_schema
 from merlin.common.schemas import validate_or_raise
-from merlin.targetgen.plugins import validate
+from merlin.development.targetgen.plugins import validate
 from merlin.compiler.backend.load import ProviderRole, read_provider
 
 ROOT = Path(__file__).resolve().parents[1]

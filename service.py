@@ -31,7 +31,7 @@ def codegen_provider():
 
 
 def validate(request) -> None:
-    from merlin.llvmlower import toolchain
+    from merlin.compiler.lower.model import toolchain
 
     from .src.rvv import backend
 

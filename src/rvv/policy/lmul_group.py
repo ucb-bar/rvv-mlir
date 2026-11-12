@@ -254,7 +254,7 @@ def lmul_cflags(lmul: int) -> tuple[str, ...]:
 def group_lmul_for_shapes(shapes, *, vlen: int | None = None) -> int:
     """One register-group width for a whole module, derived from the contractions it actually holds.
 
-    ``shapes`` is a sequence of :class:`merlin.kernels.microkernel.ContractionShape` (what
+    ``shapes`` is a sequence of :class:`merlin.analysis.kernels.microkernel.ContractionShape` (what
     ``kernels.shapes.contraction_shapes`` reads off the PREPARED IR), so the element widths are the
     ones the pipeline will see rather than a strategy string somebody declared. Each contraction
     contributes :func:`group_lmul` over its own ``(lhs, rhs, out)`` dtypes -- bounded by its own

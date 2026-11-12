@@ -2,7 +2,7 @@
 
 A `linalg.transpose` reading a `@forward` argument is not computation: it is the model paying, every
 single run, to convert a weight into the layout its consumer wanted all along. The packer could have
-stored it that way once. :mod:`merlin.xdsl_dialects.lowering.weight_layout` finds those re-layouts
+stored it that way once. :mod:`merlin.compiler.dialects.lowering.weight_layout` finds those re-layouts
 and :func:`merlin.baselines.bundle_rewrite.hoist_weight_transposes` applies them offline; what did
 not exist was a way for the COMPILER to do it, so the only bundles that had it were three
 hand-driven `_pretransposed` directories nobody could reproduce.
@@ -18,7 +18,7 @@ those are 0.4 MiB per inference on this model, well inside the band -- it is tha
 ops and their `tensor.empty` destinations stop being materialized at all, taking their buffers,
 their bufferization allocs and their copies with them.
 
-THE SEAM, which is the whole trick. :func:`merlin.llvmlower.c_runtime.generate` is handed a
+THE SEAM, which is the whole trick. :func:`merlin.compiler.lower.model.c_runtime.generate` is handed a
 **bundle directory**, not the prepared IR: it re-parses `model.mlir` for the argument signature and
 copies `weights.safetensors`' payload verbatim into `weights.bin`. So the compiled object follows
 the PREPARED module while the ABI table and the weight blob follow the BUNDLE. Rewriting the IR
@@ -87,7 +87,7 @@ def plan(src: Path | str, func_name: str = "forward") -> PrepackPlan:
     from merlin.capture.rewrite import hoist_safety_problems
     from merlin.common import mlir_query as mq
     from merlin.common.ir_lock import IR_LOCK
-    from merlin.xdsl_dialects.lowering.weight_layout import weight_layout_report
+    from merlin.compiler.dialects.lowering.weight_layout import weight_layout_report
 
     src = Path(src)
     with IR_LOCK:

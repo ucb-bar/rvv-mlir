@@ -1,6 +1,6 @@
 """PER-OP register blocking: give every contraction the block legal for ITS OWN extents.
 
-The shape-aware policy in :mod:`merlin.mining.apply` picks one block per op CLASS
+The shape-aware policy in :mod:`merlin.analysis.mining.apply` picks one block per op CLASS
 (``linalg.matmul`` / ``linalg.batch_matmul``). That is one decision too coarse, because a class is not
 shape-homogeneous: whisper_tiny's ``batch_matmul`` class holds both a 1500-wide encoder attention and a
 single-token decode step whose N=1, and the only block legal for *every* member is one lane wide. The
@@ -416,7 +416,7 @@ def mr_cap_for_registers(
     architectural file, with ``v0`` kept out of it because the encoding will not let a masked op name
     any other mask register. Every term comes from a fact about the target -- the VLEN it was built
     for, the element widths in THIS contraction's own type triple, and the RVV encoding's register
-    count (``lmul_group.VREG_COUNT`` / :data:`~merlin.llvmlower.lmul_group.RESERVED_VREGS`). Nothing
+    count (``lmul_group.VREG_COUNT`` / :data:`~merlin.compiler.lower.model.lmul_group.RESERVED_VREGS`). Nothing
     here is a measured constant, which is the point: the two MR values this repo has measured as best
     fall out of it rather than being asserted by it.
 
@@ -858,7 +858,7 @@ def tag_prepared_mlir(
     import subprocess
     from pathlib import Path
 
-    from merlin.llvmlower.toolchain import m2m_python
+    from merlin.compiler.lower.model.toolchain import m2m_python
 
     prepared = Path(prepared)
     work = Path(work) if work is not None else prepared.parent
@@ -997,7 +997,7 @@ def _assert_priced_is_tagged(table: dict[str, tuple[int, int]], stdout: str) -> 
 #: python bindings, in another process, and cannot import merlin. It is appended to the runner source
 #: only when ``runner_rewrite_src(..., pair_fuse=True)`` asks for it, so the default tagged module is
 #: byte-identical to before this existed. The predicate it calls (``merlin_requant_pair``) is spliced
-#: from :mod:`merlin.llvmlower.requant_fuse` rather than restated, so there is exactly one definition
+#: from :mod:`merlin.compiler.lower.model.requant_fuse` rather than restated, so there is exactly one definition
 #: of "this epilogue is fusable" shared by the tagger and the schedule.
 #:
 #: It also DELETES the plain ``merlin.blk_`` tag from a contraction it paired. That is load-bearing:
@@ -1379,7 +1379,7 @@ def _conv_arms(blocks: "list[tuple[str, int, int]]") -> str:
 def _requant_fuse_arms(pairs, vec_epilogue: bool = False) -> str:
     """The fused-epilogue arms, or ``""`` when nothing was paired (the byte-identical default).
 
-    Delegated to :mod:`merlin.llvmlower.requant_fuse` so the arm text and the tagger predicate that
+    Delegated to :mod:`merlin.compiler.lower.model.requant_fuse` so the arm text and the tagger predicate that
     decides which pairs exist live in one module; imported lazily so this file keeps no import-time
     dependency on a default-off lever.
     """

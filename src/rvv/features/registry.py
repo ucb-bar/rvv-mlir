@@ -208,7 +208,7 @@ def vec_noncontraction_shape(features) -> tuple[int | None, int | None]:
 
 
 def ensure_parallel_grain(threshold: int) -> str:
-    from merlin.llvmlower.parallel_grain import ensure_registered
+    from merlin.compiler.lower.model.parallel_grain import ensure_registered
 
     name = ensure_registered(threshold)
     _FEATURES.get(name)
@@ -216,7 +216,7 @@ def ensure_parallel_grain(threshold: int) -> str:
 
 
 def ensure_parallel_team(work_per_thread: int) -> str:
-    from merlin.llvmlower.parallel_team import ensure_registered
+    from merlin.compiler.lower.model.parallel_team import ensure_registered
 
     name = ensure_registered(work_per_thread)
     _FEATURES.get(name)
@@ -224,13 +224,13 @@ def ensure_parallel_team(work_per_thread: int) -> str:
 
 
 def parallel_grain_threshold(features) -> int | None:
-    from merlin.llvmlower.parallel_grain import threshold_of
+    from merlin.compiler.lower.model.parallel_grain import threshold_of
 
     return threshold_of(features)
 
 
 def parallel_team_work(features) -> int | None:
-    from merlin.llvmlower.parallel_team import work_of
+    from merlin.compiler.lower.model.parallel_team import work_of
 
     return work_of(features)
 

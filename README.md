@@ -69,7 +69,7 @@ pipeline hash checks protect this provider's original ordering.
 Each schedule branch is a standalone package: `payload/schedule.mlir` (transform-dialect tiling and
 vectorization of the contractions), `payload/knobs.yaml` (cflags, dtype strategy, tile sizes, LMUL policy,
 expected instructions) and `.merlin/` provenance. Merlin applies one with
-`merlin.mining.apply.apply_rvv_package(...)`; only the schedule and cflags change.
+`merlin.analysis.mining.apply.apply_rvv_package(...)`; only the schedule and cflags change.
 Chip delivery packages and board receipts, including Kodiak's prepack W8A8 image, live in the
 corresponding chip repository. The reusable `prepack_weight_layout` feature remains here.
 

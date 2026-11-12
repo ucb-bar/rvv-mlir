@@ -22,7 +22,7 @@ k-step are contiguous and one line carries ``line_bytes / (NR * elem_bytes)`` us
 of one. Nothing about the arithmetic changes -- it is a permutation of the weight's elements, applied
 ONCE at build time rather than never.
 
-The contraction is re-emitted in exactly the shape :mod:`merlin.llvmlower.im2col_pack` uses for the
+The contraction is re-emitted in exactly the shape :mod:`merlin.compiler.lower.model.im2col_pack` uses for the
 same job on the im2col column matrix, and for the reason recorded there: an ``scf.for`` panel loop
 whose body is a PLAIN ``(m, n, k)`` contraction of extent ``[M, NR] x K``::
 
@@ -40,7 +40,7 @@ contraction strategy handles. The panel-loop body is an ordinary contraction the
 block machinery prices, tags and schedules with no packed-specific arm.
 
 THE TWO CONSUMERS, which is the whole plumbing problem.
-:func:`merlin.llvmlower.c_runtime.generate` is handed a **bundle directory**, not the prepared IR: it
+:func:`merlin.compiler.lower.model.c_runtime.generate` is handed a **bundle directory**, not the prepared IR: it
 re-parses ``model.mlir`` for the argument table (rank + dims + element size, from which the C runtime
 builds the memref descriptor) and copies ``weights.safetensors``' payload verbatim into
 ``weights.bin``. The compiled object follows the PREPARED module; the ABI table and the blob follow
@@ -1408,7 +1408,7 @@ def assert_abi_agrees(bundle_dir: "str | Path", prepared: "str | Path") -> int:
     computes nonsense -- silently, because nothing downstream compares them. Handing one directory to
     both consumers (what the transpose hoist does) does not check this; it only makes it likely.
     """
-    from merlin.llvmlower.model_runner import parse_forward_signature
+    from merlin.compiler.lower.model.model_runner import parse_forward_signature
 
     a = parse_forward_signature(Path(bundle_dir) / "model.mlir")
     b = parse_forward_signature(Path(prepared))
@@ -1587,7 +1587,7 @@ def ensure_registered(registry=None) -> str:
 def guard_planned_pack(model_dir: "str | Path", out_dir: "str | Path") -> None:
     """Refuse if THIS build panel-packed its weights but is being handed the stock bundle.
 
-    Called from :func:`merlin.llvmlower.c_runtime.generate`, whose ``out_dir`` is a subdirectory of
+    Called from :func:`merlin.compiler.lower.model.c_runtime.generate`, whose ``out_dir`` is a subdirectory of
     the same ``work`` the preparation step wrote its plan into. Inert -- and a no-op read of a file
     that does not exist -- when nothing was packed, so every build that names no feature is
     byte-identical.

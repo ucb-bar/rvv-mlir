@@ -115,7 +115,7 @@ def _with_hygiene(feats: list[str]) -> list[str]:
 
 def _recipe(spec) -> list[str]:
     """The micro-kernel recipe proper (no hygiene) — one feature naming this point in the space."""
-    from merlin.kernels.microkernel import VL_DYNAMIC, UnsupportedAxis
+    from merlin.analysis.kernels.microkernel import VL_DYNAMIC, UnsupportedAxis
 
     from ..backend import (
         ensure_v3_kblocked_microkernel,
@@ -212,7 +212,7 @@ def _rvv_microkernel_shape_policy(spec, shapes) -> list[str]:
     does not author (``vl_strategy``/``pack``/``k_block``/``unroll_m`` each REPLACE the schedule and
     have no per-op-class arm), so an unrealized axis stays an honest divergence, never a silent one.
     """
-    from merlin.kernels.microkernel import VL_FIXED
+    from merlin.analysis.kernels.microkernel import VL_FIXED
 
     if spec.vl_strategy != VL_FIXED or spec.unroll_m or spec.pack or spec.k_block:
         return _rvv_microkernel_resolver(spec)
@@ -243,7 +243,7 @@ def microkernel_features(
 
     ``shapes`` (a sequence of ``kernels.microkernel.ContractionShape``) opts into the SHAPE-AWARE
     resolution; with the default empty sequence the realization is byte-identical to before."""
-    from merlin.kernels.microkernel import MicrokernelSpec, resolve_for_shapes
+    from merlin.analysis.kernels.microkernel import MicrokernelSpec, resolve_for_shapes
 
     return list(resolve_for_shapes(target, MicrokernelSpec.from_knobs(mk), shapes))
 
@@ -280,7 +280,7 @@ def render_schedule(knobs: dict[str, Any]) -> str:
 
 
 def _register_rvv_microkernel_resolver() -> None:
-    from merlin.kernels.microkernel import register_resolver, register_shape_policy
+    from merlin.analysis.kernels.microkernel import register_resolver, register_shape_policy
 
     register_resolver("rvv", _rvv_microkernel_resolver)
     register_shape_policy("rvv", _rvv_microkernel_shape_policy)

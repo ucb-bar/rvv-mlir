@@ -446,7 +446,7 @@ def register_microkernel_resolver() -> None:
 
 def microkernel_features(knobs: dict, shapes=()) -> list[str]:
     """Resolve with this provider's policy without changing ambient resolvers."""
-    from merlin.kernels.microkernel import MicrokernelSpec
+    from merlin.analysis.kernels.microkernel import MicrokernelSpec
 
     from .policy.microkernel_policy import (
         _rvv_microkernel_resolver,
