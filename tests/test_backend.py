@@ -245,11 +245,11 @@ def test_accumulator_microkernel_runner_source_is_provider_owned():
 
     assert BACKEND.accum_microkernel_marker() == "__merlin_scalarize_a__"
     # Pin the provider's composition separately from the SDK's live lifetime
-    # verifier. The archived full hashes stay at the original repository revision;
-    # importing them here would discard newer borrowed/fresh-allocation checks.
+    # verifier. This provider is the runner's only implementation; the hashes are
+    # the composition Merlin's native lowering spliced before it moved here.
     cases = {
-        False: "5397adb5c3760aa8625dc67218b269f88e200078cdfd2700f9da780835e7fdf7",
-        True: "cafbccb14292bbb2cacd611d9776ee3c5b9ebe0becc37f67ff87393e95a16f9e",
+        False: "2a301ac7bd05c3742b8363098d8d63e417fd17fafb41d1f98ea3523dc1177792",
+        True: "a234bf9ef1ed95144c6ea8616573379deb5c7dfdad4d351890d0e7c42276f29c",
     }
     for tag_bmm_tails, expected in cases.items():
         source = BACKEND.accum_microkernel_runner_source(tag_bmm_tails=tag_bmm_tails)
@@ -272,6 +272,30 @@ def test_accumulator_microkernel_runner_source_is_provider_owned():
         namespace["_run_stages"](None, object(), "canonicalize,optimize-allocation-liveness,convert-func-to-llvm", 0)
     assert calls == [("run", "canonicalize,optimize-allocation-liveness"),
                      ("observe", ("fresh ownership violation",))]
+
+
+def test_feature_definitions_carry_the_moved_declarations_unchanged():
+    import json
+
+    features = sorted(BACKEND.feature_definitions(), key=lambda feature: feature.name)
+    assert [feature.name for feature in features] == [
+        "conv_register_block",
+        "fuse_requant_into_contraction",
+        "fuse_requant_into_contraction_vec",
+        "lmul_group_m1",
+        "lmul_group_m2",
+        "lmul_group_m4",
+        "lmul_group_m8",
+        "prepack_weight_panels",
+    ]
+    rows = [
+        [f.name, f.action_class, f.description, f.edit_cflags(["-O2"]) if f.edit_cflags else None]
+        for f in features
+    ]
+    # Digest of the same declarations as Merlin's shared registry held them before they moved here.
+    assert hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest() == (
+        "62005b279f073934bb4096b8538add460416e8711efe360f41338a0bae639312"
+    )
 
 
 def test_other_vector_schedule_variants_keep_frozen_outputs():

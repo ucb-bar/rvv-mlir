@@ -196,7 +196,7 @@ class LayoutStep:
         }
 
     @staticmethod
-    def from_json(d: dict[str, Any]) -> LayoutStep:
+    def from_json(d: dict[str, Any]) -> "LayoutStep":
         return LayoutStep(
             kind=d["kind"],
             perm=tuple(d["perm"]),
@@ -206,7 +206,7 @@ class LayoutStep:
         )
 
 
-def replay(arr, steps: tuple[LayoutStep, ...]):
+def replay(arr, steps: "tuple[LayoutStep, ...]"):
     """Apply `steps` to a numpy array, oldest first. The bytes half of the plan.
 
     ``linalg.transpose`` is ``np.transpose``; ``tensor.collapse_shape`` / ``tensor.expand_shape`` are
@@ -229,7 +229,7 @@ def replay(arr, steps: tuple[LayoutStep, ...]):
     return arr
 
 
-def invert(steps: tuple[LayoutStep, ...]) -> tuple[LayoutStep, ...]:
+def invert(steps: "tuple[LayoutStep, ...]") -> "tuple[LayoutStep, ...]":
     """The chain that undoes `steps`, so the packed bundle's body can reconstruct the argument's
     original value from the packed one. Every step here is its own kind's inverse."""
     out: list[LayoutStep] = []
@@ -321,7 +321,7 @@ class PackedArg:
         }
 
     @staticmethod
-    def from_json(d: dict[str, Any]) -> PackedArg:
+    def from_json(d: dict[str, Any]) -> "PackedArg":
         return PackedArg(
             arg=int(d["arg"]),
             orig_shape=tuple(d["orig_shape"]),
@@ -368,7 +368,7 @@ class PanelReport:
 # --------------------------------------------------------------------------------------------------
 
 
-def _static_shape(value) -> tuple[int, ...] | None:
+def _static_shape(value) -> "tuple[int, ...] | None":
     from xdsl.dialects.builtin import TensorType
 
     t = value.type
@@ -378,7 +378,7 @@ def _static_shape(value) -> tuple[int, ...] | None:
     return None if any(d < 0 for d in shape) else shape
 
 
-def _reassoc_groups(op) -> tuple[tuple[int, ...], ...]:
+def _reassoc_groups(op) -> "tuple[tuple[int, ...], ...]":
     """The reassociation of a collapse/expand, as plain ints."""
     return tuple(tuple(int(i.value.data) for i in g) for g in op.reassociation)
 
@@ -389,7 +389,7 @@ def _elem_token(value) -> str:
 
 def _trace_to_argument(
     value, block_args, live
-) -> tuple[int, tuple[LayoutStep, ...]] | str:
+) -> "tuple[int, tuple[LayoutStep, ...]] | str":
     """``(arg_index, steps)`` for `value`, or a REFUSAL REASON string.
 
     Walks back through layout-only ops -- ``linalg.transpose``, ``tensor.collapse_shape``,
@@ -442,7 +442,7 @@ def _trace_to_argument(
     return "refused_b_not_from_argument"
 
 
-def _matmul_generic_shapes(op) -> tuple[int, int, int] | None:
+def _matmul_generic_shapes(op) -> "tuple[int, int, int] | None":
     """``(M, N, K)`` when `op` is the plain ``(d0,d2) x (d2,d1) -> (d0,d1)`` contraction, else None."""
     from xdsl.ir.affine import AffineDimExpr
 
@@ -734,7 +734,7 @@ def _forward(module, func_name: str):
     return None
 
 
-def storage_gate(bundle: str | Path | None):
+def storage_gate(bundle: "str | Path | None"):
     """``arg -> refusal reason or None`` for whether that argument's weight can be PACKED IN STORAGE.
 
     The IR analysis proves the contraction reads the argument through a layout chain. That is a fact
@@ -760,7 +760,7 @@ def storage_gate(bundle: str | Path | None):
             None
         )  # no bundle to check against; `pack_problems` still will
 
-    def gate(arg: int, shape) -> str | None:
+    def gate(arg: int, shape) -> "str | None":
         entry = man.get(str(arg))
         if entry is None or "weight" not in entry:
             return "refused_no_manifest_weight"
@@ -778,9 +778,9 @@ def storage_gate(bundle: str | Path | None):
 
 def rewrite_module(
     module,
-    table: dict[str, tuple[int, int]],
+    table: "dict[str, tuple[int, int]]",
     func_name: str = "forward",
-    bundle: str | Path | None = None,
+    bundle: "str | Path | None" = None,
     *,
     parallel_panels: bool = False,
 ) -> PanelReport:
@@ -912,13 +912,13 @@ def _packed_type(elem: str, shape):
 
 
 def rewrite_prepared_file(
-    prepared: str | Path,
-    table: dict[str, tuple[int, int]],
-    work: str | Path | None = None,
-    bundle: str | Path | None = None,
+    prepared: "str | Path",
+    table: "dict[str, tuple[int, int]]",
+    work: "str | Path | None" = None,
+    bundle: "str | Path | None" = None,
     *,
     parallel_panels: bool = False,
-) -> tuple[Path, PanelReport]:
+) -> "tuple[Path, PanelReport]":
     """Pack `prepared` and write ``model.wpacked.mlir``; returns ``(path, report)``.
 
     Nothing is written when nothing was packed, so a run where every candidate was refused keeps the
@@ -947,7 +947,7 @@ def rewrite_prepared_file(
 # --------------------------------------------------------------------------------------------------
 
 
-def write_plan(work: str | Path, report: PanelReport, prepared: str | Path) -> Path:
+def write_plan(work: "str | Path", report: PanelReport, prepared: "str | Path") -> Path:
     """Leave `report` where the ABI half will find it. Written by the preparation step, read by
     :func:`abi_bundle`; named in :data:`PLAN_FILE` because the two must agree and a silent
     disagreement is exactly the failure this module exists to prevent."""
@@ -967,7 +967,7 @@ def write_plan(work: str | Path, report: PanelReport, prepared: str | Path) -> P
     return p
 
 
-def read_plan(work: str | Path) -> tuple[list[PackedArg], dict] | None:
+def read_plan(work: "str | Path") -> "tuple[list[PackedArg], dict] | None":
     """`(packed args, raw plan)` left by the preparation step, or None if this build packed nothing."""
     p = Path(work) / PLAN_FILE
     if not p.is_file():
@@ -987,7 +987,7 @@ def _read_header(safetensors: Path) -> tuple[dict, int]:
     return header, data_start
 
 
-def pack_problems(src: str | Path, args: list[PackedArg]) -> list[str]:
+def pack_problems(src: "str | Path", args: "list[PackedArg]") -> list[str]:
     """Reasons the panels of `args` CANNOT be stored in `src`. Empty means safe.
 
     Every check is here because its ABSENCE is silent: the IR analysis proves the contraction reads
@@ -1097,7 +1097,7 @@ def pack_bytes(arr, a: PackedArg):
     return packed
 
 
-def _pack_safetensors(src: Path, dst: Path, by_name: dict[str, PackedArg]) -> int:
+def _pack_safetensors(src: Path, dst: Path, by_name: "dict[str, PackedArg]") -> int:
     """Copy the blob, packing exactly the tensors in `by_name`, keeping order and tight packing."""
     import numpy as np
 
@@ -1182,7 +1182,7 @@ def _step_text(st: LayoutStep, src: str, dst: str, empty: str, elem: str) -> lis
     raise PanelPackRefused(f"cannot emit layout step {st.kind!r}")
 
 
-def unpack_steps(a: PackedArg) -> tuple[LayoutStep, ...]:
+def unpack_steps(a: PackedArg) -> "tuple[LayoutStep, ...]":
     """The chain that turns the PACKED argument back into the value the stock module's argument held.
 
     Two halves, and both are derived: undo the panel pack (``[NO][K][NR] -> [K][NO][NR] -> [K][N]``),
@@ -1201,7 +1201,7 @@ def unpack_steps(a: PackedArg) -> tuple[LayoutStep, ...]:
     ) + invert(a.steps)
 
 
-def rewrite_bundle_mlir(text: str, args: list[PackedArg]) -> tuple[str, int]:
+def rewrite_bundle_mlir(text: str, args: "list[PackedArg]") -> tuple[str, int]:
     """Retype the packed arguments in a bundle's ``model.mlir`` and keep its body valid.
 
     `(new_text, n_retyped)`. Structural line handling, no regex, per the repo's rule: the signature is
@@ -1253,7 +1253,7 @@ def rewrite_bundle_mlir(text: str, args: list[PackedArg]) -> tuple[str, int]:
     return "\n".join(out) + "\n", retyped
 
 
-def _cache_key(src: Path, args: list[PackedArg]) -> str:
+def _cache_key(src: Path, args: "list[PackedArg]") -> str:
     """Identity of (this bundle's inputs, this plan, this packer). Content-addressed by size + mtime
     rather than by digest, for the reason ``weight_prepack.cache_key`` records: the blob is gigabytes
     on the models this matters most for. The PLAN is hashed in full -- NR is a function of the feature
@@ -1271,11 +1271,11 @@ def _cache_key(src: Path, args: list[PackedArg]) -> str:
 
 
 def packed_bundle(
-    src: str | Path,
-    args: list[PackedArg],
+    src: "str | Path",
+    args: "list[PackedArg]",
     *,
-    cache_root: str | Path | None = None,
-) -> tuple[Path, dict]:
+    cache_root: "str | Path | None" = None,
+) -> "tuple[Path, dict]":
     """`(bundle_dir, effect)` for a bundle storing `args`' weights as NR-wide panels.
 
     NEVER mutates `src`: the recapture tree is shared by every other session and every other
@@ -1367,12 +1367,10 @@ def packed_bundle(
                 "sidecars_not_carried": skipped,
             },
             caveats=[
-                (
-                    "the @forward body of THIS bundle reconstructs each argument's original value and is "
-                    "kept only so the module still type-checks; the build that produced it lowers the "
-                    "PREPARED module, in which the pack is already applied. Preparing this bundle from "
-                    "scratch would re-materialize the unpack at run time."
-                ),
+                "the @forward body of THIS bundle reconstructs each argument's original value and is "
+                "kept only so the module still type-checks; the build that produced it lowers the "
+                "PREPARED module, in which the pack is already applied. Preparing this bundle from "
+                "scratch would re-materialize the unpack at run time.",
             ]
             + (
                 [f"stale, NOT carried over from the source bundle: {skipped}"]
@@ -1400,7 +1398,7 @@ def _default_cache_root() -> Path:
     return cache_dir("weight_panel")
 
 
-def assert_abi_agrees(bundle_dir: str | Path, prepared: str | Path) -> int:
+def assert_abi_agrees(bundle_dir: "str | Path", prepared: "str | Path") -> int:
     """Refuse unless the bundle's ``@forward`` signature is the prepared module's, argument by
     argument. Returns the argument count.
 
@@ -1410,10 +1408,10 @@ def assert_abi_agrees(bundle_dir: str | Path, prepared: str | Path) -> int:
     computes nonsense -- silently, because nothing downstream compares them. Handing one directory to
     both consumers (what the transpose hoist does) does not check this; it only makes it likely.
     """
-    from merlin.common.mlir_query import forward_signature
+    from merlin.llvmlower.model_runner import parse_forward_signature
 
-    a, _ = forward_signature(Path(bundle_dir) / "model.mlir")
-    b, _ = forward_signature(Path(prepared))
+    a = parse_forward_signature(Path(bundle_dir) / "model.mlir")
+    b = parse_forward_signature(Path(prepared))
     if len(a) != len(b):
         raise PanelPackRefused(
             f"ABI skew: the bundle declares {len(a)} @forward arguments, the prepared module {len(b)}"
@@ -1436,12 +1434,12 @@ def assert_abi_agrees(bundle_dir: str | Path, prepared: str | Path) -> int:
 
 
 def abi_bundle(
-    model_dir: str | Path,
-    work: str | Path,
-    prepared: str | Path,
+    model_dir: "str | Path",
+    work: "str | Path",
+    prepared: "str | Path",
     *,
-    cache_root: str | Path | None = None,
-) -> tuple[Path, dict | None]:
+    cache_root: "str | Path | None" = None,
+) -> "tuple[Path, dict | None]":
     """The bundle ``c_runtime.generate`` must be handed for THIS build, and why.
 
     Returns `(model_dir, None)` unchanged when the preparation step packed nothing -- so a caller can
@@ -1452,7 +1450,7 @@ def abi_bundle(
     plan = read_plan(work)
     if plan is None or not plan[0]:
         return Path(model_dir), None
-    args, _raw = plan
+    args, raw = plan
     dst, effect = packed_bundle(model_dir, args, cache_root=cache_root)
     effect["abi_args_checked"] = assert_abi_agrees(dst, prepared)
     return dst, effect
@@ -1463,7 +1461,7 @@ def abi_bundle(
 # --------------------------------------------------------------------------------------------------
 
 
-def line_touch_model(args: list[PackedArg], *, line_bytes: int) -> dict[str, Any]:
+def line_touch_model(args: "list[PackedArg]", *, line_bytes: int) -> dict[str, Any]:
     """B-operand line traffic before and after the pack, per weight and in total.
 
     `line_bytes` is a REQUIRED parameter and is never defaulted: a cache-line width is a fact about a
@@ -1572,12 +1570,21 @@ def _feature():
     )
 
 
-def ensure_registered() -> str:
-    """The provider registers this feature when its registry is initialized."""
+def ensure_registered(registry=None) -> str:
+    """Register the feature if it is not already. Idempotent, and necessary in EVERY process that
+    normalizes a feature set: the lowering runs in a child process that re-imports the registry, and
+    ``wholemodel_proposer._composes`` swallows the ``KeyError`` for an unregistered name and answers
+    False -- so an unregistered lever is silently unproposable rather than reported."""
+    if registry is None:
+        from ..features.registry import _FEATURES
+
+        registry = _FEATURES
+    if FEATURE not in registry.known():
+        registry.register(_feature())
     return FEATURE
 
 
-def guard_planned_pack(model_dir: str | Path, out_dir: str | Path) -> None:
+def guard_planned_pack(model_dir: "str | Path", out_dir: "str | Path") -> None:
     """Refuse if THIS build panel-packed its weights but is being handed the stock bundle.
 
     Called from :func:`merlin.llvmlower.c_runtime.generate`, whose ``out_dir`` is a subdirectory of

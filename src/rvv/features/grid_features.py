@@ -189,19 +189,33 @@ def _packed_eliminate_empties(passes: list[str]) -> list[str]:
     return out
 
 
-def register_grid_features(registry: FeatureRegistry) -> None:
-    for lmul in lmul_group.LMUL_LADDER:
-        registry.register(
-            ImprFeature(
-                name=f"{LMUL_GROUP_PREFIX}{lmul}",
-                action_class="KNOB",
-                description=f"Pin RVV auto-vectorizer register-group width to LMUL={lmul}.",
-                edit_cflags=lambda flags, _lmul=lmul: [
-                    *flags,
-                    *lmul_group.lmul_cflags(_lmul),
-                ],
-            )
+def lmul_group_features() -> tuple[ImprFeature, ...]:
+    """One default-off KNOB per whole-register width, pinning the auto-vectorizer's group to it."""
+    return tuple(
+        ImprFeature(
+            name=f"{LMUL_GROUP_PREFIX}{lmul}",
+            action_class="KNOB",
+            description=(
+                f"Pin the vector REGISTER-GROUP WIDTH of auto-vectorized code to LMUL={lmul}, "
+                f"directly (an -mllvm backend option), without changing any tile or vector size. "
+                f"This is the seam the `vector.lmul` divergence actually wants: the N-tile route to "
+                f"the same axis also widens the tail transfer, which is a whole-model scalar-fallback "
+                f"cliff. Derive the width with `ensure_lmul_group(...)` rather than naming a number "
+                f"-- it is acc_bits/operand_bits, capped by what the VLEN can hold. Default-off; a "
+                f"build that does not name it gets byte-identical flags."
+            ),
+            edit_cflags=lambda flags, _lmul=lmul: [
+                *flags,
+                *lmul_group.lmul_cflags(_lmul),
+            ],
         )
+        for lmul in lmul_group.LMUL_LADDER
+    )
+
+
+def register_grid_features(registry: FeatureRegistry) -> None:
+    for feature in lmul_group_features():
+        registry.register(feature)
     registry.register(
         ImprFeature(
             name="fused_vfmacc_scalable",

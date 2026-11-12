@@ -309,6 +309,30 @@ def accum_microkernel_runner_source(*, tag_bmm_tails: bool = False) -> str:
     return run_source(tag_bmm_tails=tag_bmm_tails)
 
 
+def feature_definitions() -> tuple[ImprFeature, ...]:
+    """Features a Merlin build resolves from this provider by name.
+
+    The register-group widths, the direct-conv block request, the fused requantization
+    epilogue and the panel-packed weight layout are implemented here; Merlin's shared
+    optimization registry declares none of them and resolves each from this list. Each entry is
+    its implementing module's own declaration, independent of this registry's historical copy.
+    """
+    from ..packing.weight_panel import _feature as weight_panel_feature
+    from ..transforms.perop_blocks import _feature as conv_arm_feature
+    from ..transforms.requant_fuse import FEATURE as REQUANT_FEATURE
+    from ..transforms.requant_fuse import VEC_FEATURE as REQUANT_VEC_FEATURE
+    from ..transforms.requant_fuse import _feature as requant_feature
+    from .grid_features import lmul_group_features
+
+    return (
+        *lmul_group_features(),
+        conv_arm_feature(),
+        requant_feature(REQUANT_FEATURE),
+        requant_feature(REQUANT_VEC_FEATURE),
+        weight_panel_feature(),
+    )
+
+
 def apply_schedule(schedule_text: str, features: frozenset[str]) -> str:
     return _FEATURES.apply_schedule(schedule_text, features)
 

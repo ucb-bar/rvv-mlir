@@ -24,12 +24,21 @@ runner does nothing but look up each contraction's shape and set ``merlin.blk_<M
 stays in one place; the runner carries no policy it could drift from.
 """
 
+# ruff: noqa: B023, PLW1510, S112, UP031 -- frozen provider extraction
+
 from __future__ import annotations
 
-# ruff: noqa: B023, PLW1510, S112, UP031 -- frozen provider extraction
 from typing import Any
 
-from merlin.compiler.passes.contract import PAR_TAG_PREFIX, class_token
+from merlin.compiler.passes.contract import (
+    PAR_TAG_PREFIX as PAR_TAG_PREFIX,
+)
+from merlin.compiler.passes.contract import (
+    class_token as class_token,
+)
+from merlin.compiler.passes.contract import (
+    par_tag_for as par_tag_for,
+)
 
 #: Marker pass name spliced after specialization; the runner splits the pipeline here.
 BLOCK_TAG_MARKER = "__merlin_tag_perop_blocks__"
@@ -77,7 +86,9 @@ def tag_for(op: str, mr: int, nr: int) -> str:
 #: Attribute prefix for the MULTICORE split. Same join-key contract as :data:`TAG_PREFIX`: one
 #: distinct attribute per distinct (op class, forall tile) pair, set by the tagger and matched by the
 #: parallel schedule. See :func:`parallel_chunk_table` for why the split is derived per op.
-def _even_split(extent: int, harts: int, admits) -> tuple[int, int] | None:
+
+
+def _even_split(extent: int, harts: int, admits) -> "tuple[int, int] | None":
     """``(chunk, k)`` — the most EQUAL, block-legal chunks ``<= harts`` this extent divides into.
 
     EQUAL is the load-bearing word. ``tile_using_forall`` with a tile that does not divide the extent
@@ -126,11 +137,11 @@ def parallel_chunk_table(
 
     ``harts < 2`` -> ``{}``: no split, and every schedule derived from this is absent.
     """
-    from ..policy.blocking_cost import _rvv_blocking_lowers
-
     out: dict[str, tuple[int, ...]] = {}
     if int(harts) < 2:
         return out
+    from ..policy.blocking_cost import _rvv_blocking_lowers
+
     for s in shapes:
         par = tuple(int(d) for d in s.parallel)
         red = tuple(int(d) for d in (getattr(s, "reduction", ()) or ()))
@@ -202,7 +213,9 @@ def distinct_parallel_arms(
     return sorted(arms)
 
 
-def shape_key(op: str, parallel: tuple[int, ...], reduction: tuple[int, ...]) -> str:
+def shape_key(
+    op: str, parallel: "tuple[int, ...]", reduction: "tuple[int, ...]"
+) -> str:
     """Stable key for a contraction's geometry.
 
     Shape is the right key: it is what the block decision is a function of, it is stable across the
@@ -440,7 +453,12 @@ def mr_cap_for_registers(
 
 
 def _solve_block(
-    mr_cap: int, nr_cap: int, pairs, *, mr_vlen: int | None, dtypes
+    mr_cap: int,
+    nr_cap: int,
+    pairs,
+    *,
+    mr_vlen: int | None,
+    dtypes,
 ) -> tuple[int, int]:
     """``(MR, NR)`` for one contraction, with the MR cap DERIVED from its own block when asked.
 
@@ -459,14 +477,13 @@ def _solve_block(
     from ..policy.lmul_group import LMUL_LADDER
 
     block = _rvv_best_block(mr_cap, nr_cap, pairs)
-    if not mr_vlen:
-        return block
-    for _ in range(len(LMUL_LADDER)):
-        cap = mr_cap_for_registers(mr_cap, vlen=mr_vlen, nr=block[1], dtypes=dtypes)
-        nxt = _rvv_best_block(cap, nr_cap, pairs)
-        if nxt == block:
-            break
-        block = nxt
+    if mr_vlen:
+        for _ in range(len(LMUL_LADDER)):
+            cap = mr_cap_for_registers(mr_cap, vlen=mr_vlen, nr=block[1], dtypes=dtypes)
+            nxt = _rvv_best_block(cap, nr_cap, pairs)
+            if nxt == block:
+                break
+            block = nxt
     return block
 
 
@@ -513,6 +530,9 @@ def block_table(
     way: this table is derived from the model's own extents, and
     :func:`parallel_chunk_table` chooses a split that preserves it.
     """
+    shapes = tuple(shapes)
+    if not shapes:
+        return {}
     out: dict[str, tuple[int, int]] = {}
     for s in shapes:
         par = tuple(int(d) for d in s.parallel)
@@ -586,6 +606,26 @@ def block_table(
 # ---------------------------------------------------------------------------------------------------
 
 
+def _feature():
+    """The default-off :data:`CONV_ARM_FEATURE` request, as declared by this module."""
+    from merlin.compiler.selection.features import ImprFeature
+
+    return ImprFeature(
+        name=CONV_ARM_FEATURE,
+        action_class="PASS",
+        description=(
+            "Tile + vectorize the DIRECT (non-im2col) 2-D convolution: the compound-affine "
+            "linalg.generic model2MLIR emits when the im2col intermediate exceeds its element budget "
+            "(prov.conv_path=direct_contraction). Without this arm that form matches no schedule arm "
+            "and falls to convert-linalg-to-loops, so diverting a conv away from im2col is a pure "
+            "loss and the budget knob (M2M_IM2COL_MAX_ELEMS) is unusable. A REQUEST consumed by "
+            "runtime.backends.zephyr_model.prepare_for_lowering, which prices the conv geometries "
+            "into the per-op block table; with it absent the table, the tags and the schedule are "
+            "byte-identical. NOT MEASURED ON HARDWARE -- static evidence only."
+        ),
+    )
+
+
 def ensure_registered(registry=None) -> None:
     """Register the default-off :data:`CONV_ARM_FEATURE` request. Idempotent.
 
@@ -594,31 +634,13 @@ def ensure_registered(registry=None) -> None:
     feature registry: a name registered only in the parent fails to resolve in the child (the exact
     failure ``impr_features._try_lazy_register`` exists for).
     """
-    from merlin.compiler.selection.features import ImprFeature
-
     if registry is None:
         from ..features.registry import _FEATURES
 
         registry = _FEATURES
-
     if CONV_ARM_FEATURE in registry.known():
         return
-    registry.register(
-        ImprFeature(
-            name=CONV_ARM_FEATURE,
-            action_class="PASS",
-            description=(
-                "Tile + vectorize the DIRECT (non-im2col) 2-D convolution: the compound-affine "
-                "linalg.generic model2MLIR emits when the im2col intermediate exceeds its element budget "
-                "(prov.conv_path=direct_contraction). Without this arm that form matches no schedule arm "
-                "and falls to convert-linalg-to-loops, so diverting a conv away from im2col is a pure "
-                "loss and the budget knob (M2M_IM2COL_MAX_ELEMS) is unusable. A REQUEST consumed by "
-                "runtime.backends.zephyr_model.prepare_for_lowering, which prices the conv geometries "
-                "into the per-op block table; with it absent the table, the tags and the schedule are "
-                "byte-identical. NOT MEASURED ON HARDWARE -- static evidence only."
-            ),
-        )
-    )
+    registry.register(_feature())
 
 
 def _has_compound_term(results) -> bool:
@@ -632,7 +654,7 @@ def _has_compound_term(results) -> bool:
     return any(not isinstance(r, AffineDimExpr) for r in results)
 
 
-def conv_geometry(out_shape, in_shape, w_shape) -> tuple[int, int] | None:
+def conv_geometry(out_shape, in_shape, w_shape) -> "tuple[int, int] | None":
     """``(stride_h, stride_w)`` if these three shapes are a direct 2-D conv, else None.
 
     PURE SHAPE ARITHMETIC, and deliberately so: it is the ONE predicate both sides of the tagging
@@ -682,7 +704,7 @@ def conv_geometry(out_shape, in_shape, w_shape) -> tuple[int, int] | None:
     return strides[0], strides[1]
 
 
-def conv_shapes(src, *, with_strides: bool = False) -> list[Any]:
+def conv_shapes(src, *, with_strides: bool = False) -> "list[Any]":
     """Every DIRECT 2-D convolution in ``src``, as :class:`ContractionShape` at :data:`CONV_CLASS`.
 
     An ordinary direct conv has ``parallel=(N,F,Oh,Ow)``.  A grouped direct conv has
@@ -692,8 +714,12 @@ def conv_shapes(src, *, with_strides: bool = False) -> list[Any]:
     costs a vectorization rather than a build.
     """
     from merlin.common import mlir_query as mq
-    from merlin.kernels.microkernel import ContractionShape
-    from merlin.compiler.ir.contraction_shapes import _iterator_types, _shaped, indexing_maps
+    from merlin.compiler.ir.contraction_shapes import (
+        ContractionShape,
+        _iterator_types,
+        _shaped,
+        indexing_maps,
+    )
 
     try:
         module = mq.parse(src)
@@ -739,7 +765,7 @@ def conv_shapes(src, *, with_strides: bool = False) -> list[Any]:
 
 def conv_block_table(
     src,
-    features: Any = (),
+    features: "Any" = (),
     *,
     mr_cap: int = DEFAULT_MR,
     nr_cap: int,
@@ -803,14 +829,14 @@ def distinct_blocks(table: dict[str, tuple[int, int]]) -> list[tuple[str, int, i
 
 
 def tag_prepared_mlir(
-    prepared: Any,
+    prepared: "Any",
     table: dict[str, tuple[int, int]],
     *,
-    work: Any = None,
-    par_table: dict[str, tuple[int, ...]] | None = None,
+    work: "Any" = None,
+    par_table: "dict[str, tuple[int, ...]] | None" = None,
     pair_fuse: bool = False,
-    pairs_out: list | None = None,
-) -> Any:
+    pairs_out: "list | None" = None,
+) -> "Any":
     """Specialize the contractions and tag them, returning a new ``.mlir`` path.
 
     Done as a PREPROCESSING step rather than a runner splice, which is what makes this cheap and safe:
@@ -1079,7 +1105,7 @@ def tag_requant_pairs(module, ctx):
 
 def runner_rewrite_src(
     table: dict[str, tuple[int, int]],
-    par_table: dict[str, tuple[int, ...]] | None = None,
+    par_table: "dict[str, tuple[int, ...]] | None" = None,
     pair_fuse: bool = False,
 ) -> str:
     """Python source for the runner stage that applies ``table`` to the specialized IR.
@@ -1279,7 +1305,7 @@ def conv_nest_tag(mr: int, nr: int, op: str = CONV_CLASS) -> str:
     return f"{CONV_NEST_PREFIX}{class_token(op)}_{int(mr)}x{int(nr)}"
 
 
-def _conv_arms(blocks: list[tuple[str, int, int]]) -> str:
+def _conv_arms(blocks: "list[tuple[str, int, int]]") -> str:
     """The direct-conv arms, or ``""`` when the table prices no conv (the byte-identical default).
 
     Emitted as THREE stages rather than one, for the reason recorded in the module header: tile ->
@@ -1367,7 +1393,7 @@ def _requant_fuse_arms(pairs, vec_epilogue: bool = False) -> str:
 def schedule_text(
     table: dict[str, tuple[int, int]],
     kc: int,
-    pairs: list | tuple = (),
+    pairs: "list | tuple" = (),
     vec_epilogue: bool = False,
 ) -> str:
     """A v3-style pre-schedule with one tile+vectorize arm PER DISTINCT BLOCK, matched by attribute.

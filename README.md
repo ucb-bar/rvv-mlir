@@ -41,6 +41,10 @@ pipeline hash checks protect this provider's original ordering.
   per-operation blocking, vector tagging, reduction and requantization rewrites, and runner source.
 - `src/rvv/packing/` implements im2col and weight panel layouts; `src/rvv/policy/`
   derives legal blocks, LMUL, and workload shape adaptations.
+- These are the only implementations. Merlin reaches them through the provider's
+  `<component>_api()` accessors and the accumulator runner hooks, and resolves the
+  register-group, direct-conv, fused-requantization and weight-panel features from
+  `feature_definitions()`; it ships no copy of its own.
 - `schedules/` contains Transform dialect programs and knob data. Upstream MLIR supplies the passes
   those programs invoke; this repository does not ship a custom dialect or pass binary.
 - Merlin owns target-neutral capture, quantization semantics, and scalar compilation. Kodiak and

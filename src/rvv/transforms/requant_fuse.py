@@ -75,9 +75,9 @@ Default OFF: absent from a feature set, no pair is tagged, the schedule text is 
 and so is the emitted ``.ll``.
 """
 
-from __future__ import annotations
-
 # ruff: noqa: BLE001, UP031 -- frozen feature and Transform arm extraction
+
+from __future__ import annotations
 
 #: Feature name, as it appears in a package's ``compiler_features``. A REQUEST that
 #: ``prepare_for_lowering`` consumes (like the N-fill / M-fill knobs): it is removed from the set
@@ -282,8 +282,7 @@ def fused_arms(pairs, vectorize_epilogue: bool = False) -> str:
         parallel_tiles = [int(x) for x in entry[4:]]
         if parallel_tiles and (len(parallel_tiles) != rank or not any(parallel_tiles)):
             raise ValueError(
-                f"requant-fusion pair {idx} has invalid rank-{rank} parallel tile "
-                f"{parallel_tiles}"
+                f"requant-fusion pair {idx} has invalid rank-{rank} parallel tile {parallel_tiles}"
             )
         tile, ktile, mm_vec, rq_vec, n_loops = _tile_spec(rank, mr, nr)
         h = f"q{idx}"
@@ -348,8 +347,7 @@ def fused_arms(pairs, vectorize_epilogue: bool = False) -> str:
             # already gave it, unchanged by this lever. Only the EPILOGUE's shape is a new decision,
             # so only it is behind the knob.
             + (
-                f"    transform.structured.vectorize %{h}t vector_sizes {rq_vec} "
-                f": !transform.any_op\n"
+                f"    transform.structured.vectorize %{h}t vector_sizes {rq_vec} : !transform.any_op\n"
                 if vectorize_epilogue
                 else ""
             )
@@ -418,6 +416,7 @@ def ensure_registered(registry=None) -> str:
         from ..features.registry import _FEATURES
 
         registry = _FEATURES
+
     for nm in (FEATURE, VEC_FEATURE):
         if nm not in registry.known():
             registry.register(_feature(nm))

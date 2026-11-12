@@ -55,7 +55,6 @@ from merlin.llvmlower.broadcast_fold import RUNNER_PRELUDE as _BROADCAST_FOLD_PR
 from merlin.llvmlower.concat_dps import RUNNER_PRELUDE as _CONCAT_DPS_PRELUDE
 from merlin.llvmlower.copy_expand import MID_STAGE_SRC as _MID_STAGE_SRC
 from merlin.llvmlower.copy_expand import RUNNER_PRELUDE as _COPY_EXPAND_PRELUDE
-from merlin.llvmlower.fma_intrinsic import RUNNER_PRELUDE as _FMA_INTRINSIC_PRELUDE
 from merlin.llvmlower.int_softmax_table import (
     RUNNER_PRELUDE as _INT_SOFTMAX_TABLE_PRELUDE,
 )
@@ -420,17 +419,24 @@ def run_source(*, tag_bmm_tails: bool = False) -> str:
     """The lowering-runner body for this feature: split the pipeline at SCALARIZE_MARKER, run stage 1
     (forms the resident accumulator + lowers the contraction to vector.fma with f32 A-extracts), run
     the A-scalarization rewrite, then run stage 2 (bufferize -> LLVM). Mirrors the act_poly runner
-    splice; executes in the m2m venv.
-
-    The dealloc-placement check wraps ``_run_stages`` LAST, so stage 2 -- where bufferization and the
-    deallocation passes run -- goes through it: sinking a free on this runner is verified exactly as on
-    the plain one, instead of being refused for want of the check. The uniform-fill-copy stage is
-    spliced with the plain runner's argv slot for the same reason: selected, it must run here too."""
-    from merlin.llvmlower.runner_shared import (
-        _UNIFORM_FILL_COPY_MID_SRC,
-        _UNIFORM_FILL_COPY_PRELUDE,
+    splice; executes in the m2m venv."""
+    # This transport splits the same scalar pipeline as the ordinary runners.
+    # Keep its host and ownership markers executable too; otherwise the native
+    # pass manager receives private marker names as unregistered MLIR passes.
+    from merlin.compiler.lower.native.stages import (
+        _AUTOMATIC_HOST_FEATURES_PRELUDE,
+        _BROADCAST_MATH_HOIST_PRELUDE,
+        _FMA_INTRINSIC_PRELUDE,
+        _MASKED_CONTRACTION_PRELUDE,
+        _MASKED_CONTRACTION_STAGE_RUNNER,
+        _SCALAR_POINTWISE_PACKET_PRELUDE,
+        _SCALAR_SQUARED_SUM_PRELUDE,
         DEALLOC_CHECK_PRELUDE,
         DEALLOC_CHECK_RUNNER,
+        SLICED_OUTPUT_PRELUDE,
+        SLICED_OUTPUT_RUNNER,
+        SPLIT_FRESH_DEALLOCS_PRELUDE,
+        SPLIT_FRESH_DEALLOCS_RUNNER,
     )
 
     return (
@@ -449,10 +455,8 @@ def run_source(*, tag_bmm_tails: bool = False) -> str:
         + _PARALLEL_COARSEN_PRELUDE
         + _PANEL_PARALLEL_PRELUDE
         + _BMM_TAIL_PAD_PRELUDE
-        + _UNIFORM_FILL_COPY_PRELUDE
         + _REWRITER_SRC
         + _MID_STAGE_SRC
-        + _UNIFORM_FILL_COPY_MID_SRC
         + _PANEL_PARALLEL_MID_SRC
         + _PARALLEL_GRAIN_LATE_SRC
         + _PARALLEL_TEAM_STAGE_SRC
@@ -460,11 +464,21 @@ def run_source(*, tag_bmm_tails: bool = False) -> str:
         + _ALLOCA_SCOPE_LOWER_PRELUDE
         + _ROUND_INTRINSIC_PRELUDE
         + _INT_SOFTMAX_TABLE_PRELUDE
-        + _FMA_INTRINSIC_PRELUDE
         + _SCALAR_CONTRACTION_PRELUDE
+        + _FMA_INTRINSIC_PRELUDE
+        + _MASKED_CONTRACTION_PRELUDE
+        + _MASKED_CONTRACTION_STAGE_RUNNER
+        + _SCALAR_SQUARED_SUM_PRELUDE
         + _SCALAR_POINTWISE_UNROLL_PRELUDE
+        + _SCALAR_POINTWISE_PACKET_PRELUDE
+        + _BROADCAST_MATH_HOIST_PRELUDE
+        + _AUTOMATIC_HOST_FEATURES_PRELUDE
         + DEALLOC_CHECK_PRELUDE
         + DEALLOC_CHECK_RUNNER
+        + SPLIT_FRESH_DEALLOCS_PRELUDE
+        + SPLIT_FRESH_DEALLOCS_RUNNER
+        + SLICED_OUTPUT_PRELUDE
+        + SLICED_OUTPUT_RUNNER
         + f"\nMARKER = {SCALARIZE_MARKER!r}\n"
         "src_path, out_path, pipeline = sys.argv[1], sys.argv[2], sys.argv[3]\n"
         "passes = pipeline.split(',')\n"

@@ -97,6 +97,7 @@ unclaimed_op_classes = feature_registry.unclaimed_op_classes
 accum_microkernel_marker = feature_registry.accum_microkernel_marker
 accum_microkernel_rewrite_source = feature_registry.accum_microkernel_rewrite_source
 accum_microkernel_runner_source = feature_registry.accum_microkernel_runner_source
+feature_definitions = feature_registry.feature_definitions
 apply_schedule = feature_registry.apply_schedule
 apply_pipeline = feature_registry.apply_pipeline
 apply_cflags = feature_registry.apply_cflags
