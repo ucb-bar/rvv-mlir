@@ -77,7 +77,7 @@ def shape_adapted_features(
     splits each matmul over N BEFORE this schedule runs, so what the block must cover is the per-hart
     tile, not the model's N — see :func:`_harts_split_shapes`."""
     from merlin.compiler.backend.host import resolve_features
-    from merlin.kernels.shapes import contraction_shapes
+    from merlin.compiler.ir.contraction_shapes import contraction_shapes
 
     from .. import backend
 
@@ -141,7 +141,7 @@ def blocking_risks(pkg: HostPackage, model_dir: str | Path) -> list[str]:
     Empty when the package has an adaptable feature, when nothing is masked, or when the schedule is
     unreadable.
     """
-    from merlin.kernels.shapes import contraction_shapes
+    from merlin.compiler.ir.contraction_shapes import contraction_shapes
 
     from .blocking_cost import _rvv_blocking_lowers
     from .frozen_blocks import is_frozen_block

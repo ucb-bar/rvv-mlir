@@ -497,7 +497,7 @@ except KeyError:
     pass
 else:
     raise AssertionError('chip feature leaked into the base RVV provider')
-assert 'merlin.llvmlower.impr_features' not in sys.modules
+assert 'merlin.compiler.optimizations.registry' not in sys.modules
 assert backend.im2col_pack_api().__name__ == 'rvv_provider.src.rvv.packing.im2col_pack'
 assert backend.weight_panel_api().__name__ == 'rvv_provider.src.rvv.packing.weight_panel'
 """
@@ -601,7 +601,7 @@ def test_provider_caps_and_frozen_shape_adaptation(monkeypatch):
 
     # The shared package resolver must see per-hart extents, not whole-model N.
     from merlin.compiler.backend import host
-    from merlin.kernels import shapes
+    from merlin.compiler.ir import contraction_shapes as shapes
     from rvv_provider.src.rvv.policy.shape_adapt import shape_adapted_features
 
     observed = []
@@ -697,7 +697,7 @@ def test_selected_microkernel_policy_does_not_overwrite_registered_resolvers(mon
     ],
 )
 def test_selected_policy_preserves_legacy_generated_schedule_bytes(axis, legacy_feature):
-    from merlin.llvmlower import impr_features
+    from merlin.compiler.optimizations import registry as impr_features
 
     knobs = {"MR": 4, "NR": 16, "KC": 16, **axis}
     # Frozen feature identities from the pre-cutover implementation. The core

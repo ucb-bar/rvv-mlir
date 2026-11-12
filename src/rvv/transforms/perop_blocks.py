@@ -693,7 +693,7 @@ def conv_shapes(src, *, with_strides: bool = False) -> list[Any]:
     """
     from merlin.common import mlir_query as mq
     from merlin.kernels.microkernel import ContractionShape
-    from merlin.kernels.shapes import _iterator_types, _shaped, indexing_maps
+    from merlin.compiler.ir.contraction_shapes import _iterator_types, _shaped, indexing_maps
 
     try:
         module = mq.parse(src)
